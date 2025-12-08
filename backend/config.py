@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # Server Configuration
+    BACKEND_URL: str = "http://localhost:8000"
+    BACKEND_PORT: int = 8000
+    
     # CORS Configuration
     FRONTEND_URL: str = "http://localhost:3000"
     

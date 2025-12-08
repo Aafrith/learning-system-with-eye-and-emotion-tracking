@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import { 
   LogIn, 
   Users, 
@@ -20,6 +21,13 @@ import VideoFeed from './VideoFeed'
 import EngagementIndicator from './EngagementIndicator'
 import FocusAlert from './FocusAlert'
 import Notepad from './Notepad'
+import { agoraConfig, validateAgoraConfig } from '@/lib/agoraConfig'
+
+// Dynamically import Agora component to avoid SSR issues
+const InteractiveLiveStreaming = dynamic(
+  () => import('./InteractiveLiveStreaming'),
+  { ssr: false }
+)
 
 interface StudentDashboardProps {
   studentName: string
@@ -54,7 +62,10 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const [sessionCode, setSessionCode] = useState('')
   const [currentSession, setCurrentSession] = useState<SessionInfo | null>(null)
   const [isInSession, setIsInSession] = useState(false)
-  const [useMockData] = useState(true) // Enable mock mode
+  const [useMockData] = useState(false) // Disable mock mode - use real API
+  const [isWatchingStream, setIsWatchingStream] = useState(false)
+  const [agoraConfigValid, setAgoraConfigValid] = useState(false)
+  const [emotionWebSocket, setEmotionWebSocket] = useState<WebSocket | null>(null)
   const [stats, setStats] = useState<StudentStats>({
     currentEmotion: '',
     engagement: 'active',
@@ -63,9 +74,17 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
     gazeData: { focused: 0, unfocused: 0 }
   })
   const [showFocusAlert, setShowFocusAlert] = useState(false)
+  const [unfocusStartTime, setUnfocusStartTime] = useState<number | null>(null)
+  const [unfocusAlertShown, setUnfocusAlertShown] = useState(false)
   const [sessionDuration, setSessionDuration] = useState(0)
   const [notes, setNotes] = useState('')
   const [isTeacherVideoFullscreen, setIsTeacherVideoFullscreen] = useState(false)
+
+  // Validate Agora config on mount
+  useEffect(() => {
+    const validation = validateAgoraConfig()
+    setAgoraConfigValid(validation.valid)
+  }, [])
 
   // Timer for session duration
   useEffect(() => {
@@ -94,23 +113,97 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   useEffect(() => {
     if (!isInSession || !currentSession) return
 
-    const ws = new WebSocket(`ws://localhost:8000/ws/student/${currentSession.id}/${studentName}`)
+    // Get student ID from localStorage
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      console.error('No user data found in localStorage')
+      return
+    }
     
+    const user = JSON.parse(userStr)
+    const studentId = user.id
+    
+    if (!studentId) {
+      console.error('No student ID found in user data')
+      return
+    }
+
+    // Correct WebSocket URL format: /ws/session/{session_id}/student/{student_id}
+    // Clean WebSocket URL to avoid double slashes
+    const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000').replace(/\/+$/, '')
+    const ws = new WebSocket(`${wsUrl}/ws/session/${currentSession.id}/student/${studentId}`)
+    
+    // Ping interval to keep connection alive
+    let pingInterval: NodeJS.Timeout
+
     ws.onopen = () => {
       console.log('Connected to session WebSocket')
+      console.log(`Session ID: ${currentSession.id}, Student: ${studentName}`)
+      
+      // Send ping every 30 seconds to keep connection alive
+      pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ping' }))
+        }
+      }, 30000)
     }
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'focus_alert') {
-        setShowFocusAlert(true)
-        setTimeout(() => setShowFocusAlert(false), 5000)
-      } else if (data.type === 'session_ended') {
-        handleLeaveSession()
+      try {
+        const data = JSON.parse(event.data)
+        console.log('WebSocket message received:', data.type)
+        
+        if (data.type === 'emotion_result') {
+          // Handle emotion detection results from backend
+          console.log('Emotion result:', data.data)
+          handleEmotionData(data.data)
+        } else if (data.type === 'pong') {
+          // Received pong response
+          console.log('Pong received - connection alive')
+        } else if (data.type === 'focus_alert') {
+          setShowFocusAlert(true)
+          setTimeout(() => setShowFocusAlert(false), 5000)
+        } else if (data.type === 'session_ended') {
+          console.log('Session ended by teacher')
+          alert('The teacher has ended the session.')
+          handleLeaveSession()
+        } else if (data.type === 'connected') {
+          console.log('WebSocket connected:', data.message)
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error)
       }
     }
 
-    return () => ws.close()
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error)
+    }
+
+    ws.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason)
+      clearInterval(pingInterval)
+      
+      // Auto-reconnect after 3 seconds if session is still active
+      if (isInSession && currentSession) {
+        console.log('Attempting to reconnect in 3 seconds...')
+        setTimeout(() => {
+          if (isInSession && currentSession) {
+            window.location.reload() // Simple reconnect by reloading
+          }
+        }, 3000)
+      }
+    }
+
+    // Set emotion WebSocket for VideoFeed component
+    setEmotionWebSocket(ws)
+
+    return () => {
+      clearInterval(pingInterval)
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+      setEmotionWebSocket(null)
+    }
   }, [isInSession, currentSession])
 
   const joinSession = async () => {
@@ -136,38 +229,59 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
 
     // Real mode - use backend
     try {
-      const response = await fetch('http://localhost:8000/student/sessions/join', {
+      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+      const token = localStorage.getItem('access_token')
+      
+      const response = await fetch(`${apiUrl}/api/sessions/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          session_code: sessionCode.toUpperCase(),
-          student_name: studentName
+          session_code: sessionCode.toUpperCase()
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to join session')
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to join session' }))
+        throw new Error(errorData.detail || 'Failed to join session')
       }
 
       const session = await response.json()
+      console.log('Joined session response:', session)
+      
+      // Extract session ID - handle both _id and id
+      const sessionId = session._id || session.id
+      if (!sessionId) {
+        console.error('No session ID in response:', session)
+        throw new Error('Invalid session response - missing ID')
+      }
+      
       setCurrentSession({
-        id: session.session_id,
-        sessionCode: sessionCode.toUpperCase(),
+        id: sessionId,
+        sessionCode: session.session_code,
         teacherName: session.teacher_name,
         subject: session.subject,
-        startTime: new Date(session.start_time),
-        isActive: true
+        startTime: new Date(session.started_at || session.created_at),
+        isActive: session.is_active
       })
       setIsInSession(true)
       setSessionCode('')
-    } catch (error) {
+      console.log('Session state updated, isInSession:', true)
+    } catch (error: any) {
       console.error('Error joining session:', error)
-      alert('Failed to join session. Please check the code and try again.')
+      alert(error.message || 'Failed to join session. Please check the code and try again.')
     }
   }
 
   const handleLeaveSession = async () => {
     if (!currentSession) return
+
+    // Close WebSocket first
+    if (emotionWebSocket) {
+      emotionWebSocket.close()
+    }
 
     if (useMockData) {
       // Mock mode
@@ -186,7 +300,8 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
 
     // Real mode
     try {
-      await fetch(`http://localhost:8000/student/sessions/${currentSession.id}/leave`, {
+      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+      await fetch(`${apiUrl}/api/sessions/${currentSession.id}/leave`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_name: studentName })
@@ -231,37 +346,48 @@ Duration: ${formatDuration(sessionDuration)}
     const fullContent = sessionInfo + notes
     const blob = new Blob([fullContent], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `session-notes-${new Date().toISOString().split('T')[0]}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `session-notes-${Date.now()}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
 
-  const handleEmotionDetected = (emotion: string) => {
+  const handleEmotionDetected = (emotionData: { 
+    emotion: string | null, 
+    confidence: number, 
+    engagement: 'active' | 'passive' | 'distracted', 
+    focus_level: number, 
+    face_detected: boolean,
+    is_focused_gaze?: boolean,
+    gaze_direction?: string 
+  }) => {
+    if (!emotionData.emotion) return
+    
+    const emotion = emotionData.emotion
     setStats(prev => {
-      const newStats = { ...prev, currentEmotion: emotion }
-      
-      // Map emotion to engagement
-      const emotionMap: Record<string, 'active' | 'passive' | 'distracted'> = {
-        'happy': 'active',
-        'neutral': 'passive',
-        'sad': 'distracted',
-        'angry': 'distracted',
-        'fearful': 'distracted',
-        'surprised': 'passive',
-        'disgusted': 'distracted'
+      const newStats = { 
+        ...prev, 
+        currentEmotion: emotion,
+        engagement: emotionData.engagement, // Use backend's engagement calculation
+        focusLevel: emotionData.focus_level // Use backend's focus level
       }
       
-      const engagement = emotionMap[emotion.toLowerCase()] || 'passive'
-      newStats.engagement = engagement
-      newStats.engagementData[engagement]++
-
-      // Update focus level
-      const focusLevels = { active: 100, passive: 70, distracted: 30 }
-      newStats.focusLevel = focusLevels[engagement]
+      // Increment engagement data based on backend's classification
+      // This represents detection events (roughly 1 per second when streaming)
+      newStats.engagementData[emotionData.engagement]++
+      
+      // Track gaze focus data
+      if (emotionData.is_focused_gaze !== undefined) {
+        if (emotionData.is_focused_gaze) {
+          newStats.gazeData.focused++
+        } else {
+          newStats.gazeData.unfocused++
+        }
+      }
 
       // Send update to backend
       if (currentSession) {
@@ -270,25 +396,92 @@ Duration: ${formatDuration(sessionDuration)}
 
       return newStats
     })
+    
+    // Track unfocus duration and show alert only after 1 minute
+    const isUnfocused = emotionData.engagement === 'distracted' || 
+                        emotionData.focus_level < 50 || 
+                        emotionData.is_focused_gaze === false
+    
+    if (isUnfocused) {
+      // Start tracking unfocus time if not already tracking
+      if (unfocusStartTime === null) {
+        setUnfocusStartTime(Date.now())
+        setUnfocusAlertShown(false)
+      } else {
+        // Check if unfocused for more than 60 seconds (1 minute)
+        const unfocusDuration = (Date.now() - unfocusStartTime) / 1000
+        if (unfocusDuration >= 60 && !unfocusAlertShown) {
+          setShowFocusAlert(true)
+          setUnfocusAlertShown(true)
+          setTimeout(() => setShowFocusAlert(false), 5000)
+        }
+      }
+    } else {
+      // Reset unfocus tracking when user is focused again
+      setUnfocusStartTime(null)
+      setUnfocusAlertShown(false)
+    }
+  }
+
+  const handleEmotionData = (data: any) => {
+    if (data.emotion) {
+      setStats(prev => {
+        const newStats = { 
+          ...prev, 
+          currentEmotion: data.emotion,
+          engagement: data.engagement || prev.engagement, // Use backend's engagement
+          focusLevel: data.focus_level || prev.focusLevel // Use backend's focus level
+        }
+        
+        // Increment engagement data based on backend's classification
+        if (data.engagement) {
+          newStats.engagementData[data.engagement]++
+        }
+        
+        // Track gaze focus data
+        if (data.is_focused_gaze !== undefined) {
+          if (data.is_focused_gaze) {
+            newStats.gazeData.focused++
+          } else {
+            newStats.gazeData.unfocused++
+          }
+        }
+
+        return newStats
+      })
+
+      // Track unfocus duration and show alert only after 1 minute
+      const isUnfocused = data.engagement === 'distracted' || 
+                          (data.focus_level && data.focus_level < 50) ||
+                          data.is_focused_gaze === false
+      
+      if (isUnfocused) {
+        // Start tracking unfocus time if not already tracking
+        if (unfocusStartTime === null) {
+          setUnfocusStartTime(Date.now())
+          setUnfocusAlertShown(false)
+        } else {
+          // Check if unfocused for more than 60 seconds (1 minute)
+          const unfocusDuration = (Date.now() - unfocusStartTime) / 1000
+          if (unfocusDuration >= 60 && !unfocusAlertShown) {
+            setShowFocusAlert(true)
+            setUnfocusAlertShown(true)
+            setTimeout(() => setShowFocusAlert(false), 5000)
+          }
+        }
+      } else {
+        // Reset unfocus tracking when user is focused again
+        setUnfocusStartTime(null)
+        setUnfocusAlertShown(false)
+      }
+    }
   }
 
   const sendStatsUpdate = async (updatedStats: StudentStats) => {
-    if (!currentSession) return
-
-    try {
-      await fetch(`http://localhost:8000/student/sessions/${currentSession.id}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_name: studentName,
-          emotion: updatedStats.currentEmotion,
-          engagement: updatedStats.engagement,
-          focus_level: updatedStats.focusLevel
-        })
-      })
-    } catch (error) {
-      console.error('Error sending stats update:', error)
-    }
+    // Stats are sent via WebSocket in real-time, no need for additional API call
+    // The WebSocket already updates the database with emotion, engagement, and focus data
+    // This function is kept for backward compatibility but does nothing
+    return
   }
 
   const formatDuration = (seconds: number) => {
@@ -309,11 +502,41 @@ Duration: ${formatDuration(sessionDuration)}
 
   const getEngagementIcon = (engagement: string) => {
     switch (engagement) {
-      case 'active': return <CheckCircle className="w-5 h-5" />
+      case 'active': return <TrendingUp className="w-5 h-5" />
       case 'passive': return <Clock className="w-5 h-5" />
       case 'distracted': return <AlertCircle className="w-5 h-5" />
       default: return <Brain className="w-5 h-5" />
     }
+  }
+
+  const getEmotionColor = (emotion: string) => {
+    const colors: Record<string, string> = {
+      'happy': 'bg-green-100 text-green-800 border border-green-300',
+      'focused': 'bg-blue-100 text-blue-800 border border-blue-300',
+      'neutral': 'bg-gray-100 text-gray-800 border border-gray-300',
+      'calm': 'bg-blue-100 text-blue-800 border border-blue-300',
+      'surprised': 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+      'sad': 'bg-purple-100 text-purple-800 border border-purple-300',
+      'angry': 'bg-red-100 text-red-800 border border-red-300',
+      'fearful': 'bg-orange-100 text-orange-800 border border-orange-300',
+      'disgusted': 'bg-pink-100 text-pink-800 border border-pink-300'
+    }
+    return colors[emotion.toLowerCase()] || 'bg-gray-100 text-gray-800 border border-gray-300'
+  }
+
+  const getEmotionEmoji = (emotion: string) => {
+    const emojis: Record<string, string> = {
+      'happy': '😊',
+      'focused': '🎯',
+      'neutral': '😐',
+      'calm': '😌',
+      'surprised': '😮',
+      'sad': '😢',
+      'angry': '😠',
+      'fearful': '😨',
+      'disgusted': '🤢'
+    }
+    return emojis[emotion.toLowerCase()] || '🙂'
   }
 
   return (
@@ -349,10 +572,22 @@ Duration: ${formatDuration(sessionDuration)}
                   <h2 className="text-2xl font-bold text-gray-900">{currentSession.subject}</h2>
                   <p className="text-gray-600">Teacher: {currentSession.teacherName}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500 mb-2">Session Duration</p>
-                  <p className="text-2xl font-bold text-gray-900 font-mono">{formatDuration(sessionDuration)}</p>
-                  <button onClick={handleLeaveSession} className="btn btn-danger mt-4">
+                <div className="text-right space-y-3">
+                  {/* Real-time Emotion Display */}
+                  {stats.currentEmotion && (
+                    <div className="mb-3">
+                      <p className="text-sm text-gray-500 mb-1">Your Current Emotion</p>
+                      <div className={`px-4 py-2 rounded-lg font-semibold text-center ${getEmotionColor(stats.currentEmotion)}`}>
+                        <span className="text-2xl mr-2">{getEmotionEmoji(stats.currentEmotion)}</span>
+                        <span className="capitalize">{stats.currentEmotion}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">Session Duration</p>
+                    <p className="text-2xl font-bold text-gray-900 font-mono">{formatDuration(sessionDuration)}</p>
+                  </div>
+                  <button onClick={handleLeaveSession} className="btn btn-danger w-full">
                     <LogOut className="w-4 h-4 mr-2" />
                     Leave Session
                   </button>
@@ -363,7 +598,7 @@ Duration: ${formatDuration(sessionDuration)}
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Main Area */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Teacher Video Feed */}
+                {/* Teacher Video Feed / Live Stream */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -371,30 +606,70 @@ Duration: ${formatDuration(sessionDuration)}
                       Teacher: {currentSession.teacherName}
                     </h3>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm px-3 py-1 bg-primary-100 text-primary-800 rounded-full font-medium">
-                        Live Presentation
+                      <span className="text-sm px-3 py-1 bg-primary-100 text-primary-800 rounded-full font-medium flex items-center">
+                        {isWatchingStream ? (
+                          <>
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                            Live
+                          </>
+                        ) : (
+                          <>Session: {currentSession.sessionCode}</>
+                        )}
                       </span>
-                      <button
-                        onClick={() => setIsTeacherVideoFullscreen(true)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Fullscreen"
-                      >
-                        <Maximize className="w-5 h-5 text-gray-600" />
-                      </button>
+                      {agoraConfigValid && !isWatchingStream && (
+                        <button
+                          onClick={() => setIsWatchingStream(true)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Join Live Stream
+                        </button>
+                      )}
+                      {!isWatchingStream && (
+                        <button
+                          onClick={() => setIsTeacherVideoFullscreen(true)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Fullscreen"
+                        >
+                          <Maximize className="w-5 h-5 text-gray-600" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="relative bg-gray-900 rounded-lg overflow-hidden">
-                    <div className="w-full h-96 flex items-center justify-center bg-gradient-to-br from-primary-900 to-primary-700">
-                      <div className="text-center text-white">
-                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-semibold">Teacher Camera</p>
-                        <p className="text-sm opacity-75 mt-2">Teacher video feed will appear here</p>
-                        <div className="mt-4 flex items-center justify-center space-x-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="text-xs">Connected</span>
+                  <div>
+                    {isWatchingStream ? (
+                      <InteractiveLiveStreaming
+                        sessionId={`session_${currentSession.sessionCode}`}
+                        appId={agoraConfig.appId}
+                        userId={studentName}
+                        userName={studentName}
+                        isHost={false}
+                        onCallEnd={() => setIsWatchingStream(false)}
+                      />
+                    ) : (
+                      <div className="w-full h-96 flex items-center justify-center bg-gradient-to-br from-primary-900 to-primary-700">
+                        <div className="text-center text-white">
+                          <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                          <p className="text-lg font-semibold">Teacher Camera</p>
+                          {agoraConfigValid ? (
+                            <>
+                              <p className="text-sm opacity-75 mt-2">Click &quot;Join Live Stream&quot; to watch</p>
+                              <div className="mt-4 flex items-center justify-center space-x-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span className="text-xs">Stream Available</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm opacity-75 mt-2">Waiting for teacher to start streaming</p>
+                              <div className="mt-4 flex items-center justify-center space-x-2">
+                                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                <span className="text-xs">Connected</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -405,15 +680,26 @@ Duration: ${formatDuration(sessionDuration)}
                       <Eye className="w-5 h-5 mr-2" />
                       Your Camera Feed
                     </h3>
-                    <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getEngagementColor(stats.engagement)}`}>
-                      {getEngagementIcon(stats.engagement)}
-                      <span className="capitalize">{stats.engagement}</span>
+                    <div className="flex items-center gap-2">
+                      {stats.currentEmotion && (
+                        <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium ${getEmotionColor(stats.currentEmotion)}`}>
+                          <span className="text-lg">{getEmotionEmoji(stats.currentEmotion)}</span>
+                          <span className="capitalize">{stats.currentEmotion}</span>
+                        </div>
+                      )}
+                      <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getEngagementColor(stats.engagement)}`}>
+                        {getEngagementIcon(stats.engagement)}
+                        <span className="capitalize">{stats.engagement}</span>
+                      </div>
                     </div>
                   </div>
-                  <VideoFeed 
-                    isActive={isInSession} 
-                    onEmotionDetected={handleEmotionDetected}
-                  />
+                  <div className="max-w-sm">
+                    <VideoFeed 
+                      isActive={isInSession}
+                      websocket={emotionWebSocket}
+                      onEmotionDetected={handleEmotionDetected}
+                    />
+                  </div>
                 </div>
 
                 {/* Learning Notes */}
@@ -458,6 +744,28 @@ Duration: ${formatDuration(sessionDuration)}
                       <span className="text-sm text-gray-600">Focus Level:</span>
                       <span className="font-medium text-gray-900">{stats.focusLevel}%</span>
                     </div>
+                    
+                    {/* Gaze Focus Status */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-sm text-gray-600 flex items-center">
+                        <Eye className="w-4 h-4 mr-1" />
+                        Gaze Focus:
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          stats.gazeData.focused > stats.gazeData.unfocused 
+                            ? 'bg-green-500 animate-pulse' 
+                            : 'bg-orange-500'
+                        }`}></div>
+                        <span className={`font-medium text-sm ${
+                          stats.gazeData.focused > stats.gazeData.unfocused 
+                            ? 'text-green-600' 
+                            : 'text-orange-600'
+                        }`}>
+                          {stats.gazeData.focused > stats.gazeData.unfocused ? 'On Screen' : 'Looking Away'}
+                        </span>
+                      </div>
+                    </div>
 
                     <div className="pt-4 border-t">
                       <div className="mb-2">
@@ -472,6 +780,30 @@ Duration: ${formatDuration(sessionDuration)}
                               stats.focusLevel >= 40 ? 'bg-warning-600' : 'bg-danger-600'
                             }`}
                             style={{ width: `${stats.focusLevel}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      {/* Gaze Focus Progress */}
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Screen Focus</span>
+                          <span>
+                            {stats.gazeData.focused + stats.gazeData.unfocused > 0
+                              ? Math.round((stats.gazeData.focused / (stats.gazeData.focused + stats.gazeData.unfocused)) * 100)
+                              : 100}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="h-1.5 rounded-full transition-all bg-blue-500"
+                            style={{ 
+                              width: `${
+                                stats.gazeData.focused + stats.gazeData.unfocused > 0
+                                  ? (stats.gazeData.focused / (stats.gazeData.focused + stats.gazeData.unfocused)) * 100
+                                  : 100
+                              }%` 
+                            }}
                           ></div>
                         </div>
                       </div>

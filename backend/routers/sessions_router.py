@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from models import (
     SessionCreate, SessionResponse, SessionJoin, 
     StudentInSession, UserInDB, EngagementData
@@ -26,7 +26,7 @@ async def create_session(
     while await db.sessions.find_one({"session_code": session_code}):
         session_code = generate_session_code()
     
-    # Create session
+    # Create session (active by default so students can join immediately)
     session_dict = {
         "_id": str(ObjectId()),
         "session_code": session_code,
@@ -34,10 +34,10 @@ async def create_session(
         "teacher_name": current_user.name,
         "subject": session_data.subject,
         "max_students": session_data.max_students,
-        "is_active": False,
+        "is_active": True,  # Active by default
         "students": [],
         "created_at": datetime.utcnow(),
-        "started_at": None,
+        "started_at": datetime.utcnow(),  # Set start time immediately
         "ended_at": None
     }
     
@@ -68,12 +68,12 @@ async def start_session(
             detail="Not authorized to start this session"
         )
     
-    # Check if already active
+    # Check if already active (return current state if so)
     if session["is_active"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session is already active"
-        )
+        # Session already active, just return it
+        session_dict = {k: v for k, v in session.items()}
+        session_dict["id"] = str(session_dict.pop("_id"))
+        return SessionResponse(**session_dict)
     
     # Start session
     await db.sessions.update_one(
@@ -114,6 +114,16 @@ async def end_session(
             detail="Not authorized to end this session"
         )
     
+    # Import manager to send WebSocket notification
+    from routers.websocket_router import manager
+    
+    # Notify all students that session has ended
+    await manager.send_to_students(session_id, {
+        "type": "session_ended",
+        "message": "Teacher has ended the session",
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
     # End session
     await db.sessions.update_one(
         {"_id": session_id},
@@ -144,11 +154,11 @@ async def get_teacher_sessions(
     
     return [SessionResponse(**session) for session in sessions]
 
-@router.get("/teacher/active", response_model=SessionResponse)
+@router.get("/teacher/active")
 async def get_active_teacher_session(
     current_user: UserInDB = Depends(get_current_teacher)
 ):
-    """Get the current active session for the teacher"""
+    """Get the current active session for the teacher (returns null if no active session)"""
     db = await get_database()
     
     # Find active session
@@ -157,11 +167,9 @@ async def get_active_teacher_session(
         "is_active": True
     })
     
+    # Return null if no active session (not an error)
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active session found"
-        )
+        return None
     
     return SessionResponse(**session)
 

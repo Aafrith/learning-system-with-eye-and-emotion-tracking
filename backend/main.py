@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 from database import connect_to_mongo, close_mongo_connection
-from routers import auth_router, sessions_router, admin_router, websocket_router, notifications_router
+from config import settings
+from routers import auth_router, sessions_router, admin_router, websocket_router, notifications_router, emotion_router, agora_router
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
@@ -24,16 +26,20 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Note: Permissive settings for development. Restrict in production!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Allow all hosts for development (disable host checking)
+# This is necessary for port forwarding and tunnels
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"]
 )
 
 # Include routers
@@ -41,6 +47,8 @@ app.include_router(auth_router)
 app.include_router(sessions_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
+app.include_router(emotion_router)
+app.include_router(agora_router)
 app.include_router(websocket_router)
 
 # Root endpoint
@@ -61,4 +69,11 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True,
+        proxy_headers=True,  # Trust X-Forwarded-* headers
+        forwarded_allow_ips="*"  # Allow forwarded IPs from any proxy
+    )

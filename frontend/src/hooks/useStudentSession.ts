@@ -17,18 +17,28 @@ export interface Session {
 }
 
 export interface StudentStats {
-  currentEmotion: string
+  currentEmotion: string | null
+  rawEmotion?: string
+  confidence: number
   engagement: 'active' | 'passive' | 'distracted'
   focusLevel: number
+  faceDetected: boolean
+  pose?: {
+    yaw: number
+    pitch: number
+    roll: number
+  }
 }
 
 export function useStudentSession(studentId: string) {
   const [currentSession, setCurrentSession] = useState<Session | null>(null)
   const [pastSessions, setPastSessions] = useState<Session[]>([])
   const [stats, setStats] = useState<StudentStats>({
-    currentEmotion: '',
+    currentEmotion: null,
+    confidence: 0,
     engagement: 'active',
-    focusLevel: 100
+    focusLevel: 100,
+    faceDetected: false
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -82,14 +92,32 @@ export function useStudentSession(studentId: string) {
     
     ws.on('connected', (data) => {
       console.log('Student connected to session:', data)
-    })
-
     ws.on('session_update', (data) => {
       console.log('Session update received:', data)
       // Handle session updates from teacher
     })
 
+    ws.on('emotion_result', (data) => {
+      console.log('Emotion result received:', data)
+      // Update local stats with emotion data from backend
+      setStats({
+        currentEmotion: data.emotion,
+        rawEmotion: data.raw_emotion,
+        confidence: data.confidence,
+        engagement: data.engagement,
+        focusLevel: data.focus_level,
+        faceDetected: data.face_detected,
+        pose: data.pose
+      })
+    })
+
+    ws.on('error', (data) => {
+      console.error('WebSocket error:', data)
+    })
+
     ws.on('pong', () => {
+      // Connection is alive
+    }).on('pong', () => {
       // Connection is alive
     })
 
@@ -126,39 +154,41 @@ export function useStudentSession(studentId: string) {
       await sessionApi.leaveSession(sessionId)
       
       // Move to past sessions if it was current
-      if (currentSession && currentSession._id === sessionId) {
-        setPastSessions(prev => [currentSession, ...prev])
-        setCurrentSession(null)
-      }
-      
-      // Disconnect WebSocket
-      if (wsRef.current) {
-        wsRef.current.disconnect()
-        wsRef.current = null
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to leave session')
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateEngagement = async (emotion?: string, engagement?: 'active' | 'passive' | 'distracted', focusLevel?: number) => {
+  const updateEngagement = async (emotionData?: Partial<StudentStats>) => {
     if (!currentSession) return
 
     try {
       // Update local stats
-      setStats(prev => ({
-        currentEmotion: emotion || prev.currentEmotion,
-        engagement: engagement || prev.engagement,
-        focusLevel: focusLevel !== undefined ? focusLevel : prev.focusLevel
-      }))
+      if (emotionData) {
+        setStats(prev => ({
+          ...prev,
+          ...emotionData
+        }))
+      }
 
       // Send through WebSocket if connected
-      if (wsRef.current && wsRef.current.isConnected()) {
+      if (wsRef.current && wsRef.current.isConnected() && emotionData) {
         wsRef.current.send({
           type: 'engagement_update',
+          data: {
+            emotion: emotionData.currentEmotion,
+            raw_emotion: emotionData.rawEmotion,
+            confidence: emotionData.confidence,
+            engagement: emotionData.engagement,
+            focus_level: emotionData.focusLevel,
+            face_detected: emotionData.faceDetected,
+            pose: emotionData.pose
+          }
+        })
+      }
+    } catch (err: any) {
+      console.error('Error updating engagement:', err)
+    }
+  }
+
+  const getWebSocket = () => {
+    return wsRef.current
+  }       type: 'engagement_update',
           data: {
             emotion,
             engagement,
@@ -169,19 +199,20 @@ export function useStudentSession(studentId: string) {
         // Fallback to HTTP API
         await sessionApi.updateEngagement(currentSession._id, studentId, {
           emotion,
-          engagement,
-          focus_level: focusLevel
-        })
-      }
-    } catch (err: any) {
-      console.error('Error updating engagement:', err)
-    }
+  return {
+    currentSession,
+    pastSessions,
+    stats,
+    isLoading,
+    error,
+    joinSession,
+    leaveSession,
+    updateEngagement,
+    refreshSession,
+    loadPastSessions,
+    getWebSocket
   }
-
-  const refreshSession = async () => {
-    if (!currentSession) return
-    
-    try {
+}   try {
       const session = await sessionApi.getSession(currentSession._id)
       setCurrentSession(session)
     } catch (err: any) {

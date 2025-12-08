@@ -232,6 +232,7 @@ export function createStudentWebSocket(sessionId: string, studentId: string): We
 export const mainWebSocket = new WebSocketManager('ws://localhost:8000/ws')
 
 // Utility function to create session-specific WebSocket
-export const createSessionWebSocket = (sessionId: string): WebSocketManager => {
-  return new WebSocketManager(`ws://localhost:8000/ws/${sessionId}`)
+export function createSessionWebSocket(sessionId: string): WebSocketManager {
+  const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+  return new WebSocketManager(`${WS_BASE_URL}/ws/${sessionId}`)
 }

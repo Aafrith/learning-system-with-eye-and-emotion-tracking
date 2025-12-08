@@ -5,76 +5,205 @@ import { Camera, CameraOff } from 'lucide-react'
 
 interface VideoFeedProps {
   isActive: boolean
-  onEmotionDetected?: (emotion: string) => void
-  height?: string // Tailwind height class (e.g., 'h-40', 'h-96')
+  websocket?: WebSocket | null
+  onEmotionDetected?: (emotionData: EmotionData) => void
+  height?: string
 }
 
-export default function VideoFeed({ isActive, onEmotionDetected, height = 'h-40' }: VideoFeedProps) {
+interface EmotionData {
+  emotion: string | null
+  raw_emotion?: string
+  confidence: number
+  engagement: 'active' | 'passive' | 'distracted'
+  focus_level: number
+  face_detected: boolean
+  is_focused_gaze?: boolean
+  gaze_direction?: string
+  eye_openness?: number
+  wearing_glasses?: boolean
+  face_distance?: number
+  lighting_quality?: number
+  pose?: {
+    yaw: number
+    pitch: number
+    roll: number
+  }
+}
+
+export default function VideoFeed({ isActive, websocket, onEmotionDetected, height = 'h-40' }: VideoFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const [currentEmotion, setCurrentEmotion] = useState<string>('')
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const [currentEmotion, setCurrentEmotion] = useState<string | null>(null)
+  const [confidence, setConfidence] = useState<number>(0)
+  const [faceDetected, setFaceDetected] = useState<boolean>(false)
+  const [gazeDirection, setGazeDirection] = useState<string>('CENTER')
+  const [isFocusedGaze, setIsFocusedGaze] = useState<boolean>(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isActive) {
       startVideoStream()
-      startEmotionDetection()
     } else {
       stopVideoStream()
-      stopEmotionDetection()
     }
 
     return () => {
       stopVideoStream()
-      stopEmotionDetection()
     }
   }, [isActive])
 
-  // WebSocket connection for real-time emotion data
+  // Handle WebSocket emotion results
   useEffect(() => {
-    if (!isActive) return
+    if (!websocket) return
 
-    const ws = new WebSocket('ws://localhost:8000/ws')
-    
-    ws.onopen = () => {
-      console.log('Connected to emotion recognition WebSocket')
-      setIsProcessing(true)
-    }
-
-    ws.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data)
-        if (data.type === 'emotion' && data.emotion) {
-          setCurrentEmotion(data.emotion)
-          onEmotionDetected?.(data.emotion)
+        
+        if (data.type === 'emotion_result') {
+          const emotionData: EmotionData = data.data
+          
+          // Debug log to see what we're receiving
+          console.log('Emotion result received:', {
+            emotion: emotionData.emotion,
+            is_focused_gaze: emotionData.is_focused_gaze,
+            gaze_direction: emotionData.gaze_direction,
+            eye_openness: emotionData.eye_openness
+          })
+          
+          setCurrentEmotion(emotionData.emotion)
+          setConfidence(emotionData.confidence)
+          setFaceDetected(emotionData.face_detected)
+          setGazeDirection(emotionData.gaze_direction || 'CENTER')
+          
+          // Only set to true if explicitly true, otherwise false
+          if (emotionData.is_focused_gaze !== undefined) {
+            setIsFocusedGaze(emotionData.is_focused_gaze)
+          }
+          
+          setError(null) // Clear any errors
+          onEmotionDetected?.(emotionData)
+        } else if (data.type === 'error') {
+          console.error('Backend error:', data.message)
+          setError(data.message)
         }
       } catch (error) {
-        console.error('Error parsing emotion data:', error)
+        console.error('Error parsing WebSocket message:', error)
+        setError('Failed to process emotion data')
       }
     }
 
-    ws.onclose = () => {
-      console.log('Emotion recognition WebSocket disconnected')
-      setIsProcessing(false)
+    const handleError = (event: Event) => {
+      console.error('WebSocket error:', event)
+      setError('Connection error')
     }
 
-    ws.onerror = (error) => {
-      console.error('Emotion recognition WebSocket error:', error)
-      setIsProcessing(false)
+    const handleClose = () => {
+      console.log('WebSocket closed')
+      setError('Connection closed')
     }
+
+    websocket.addEventListener('message', handleMessage)
+    websocket.addEventListener('error', handleError)
+    websocket.addEventListener('close', handleClose)
 
     return () => {
-      ws.close()
+      websocket.removeEventListener('message', handleMessage)
+      websocket.removeEventListener('error', handleError)
+      websocket.removeEventListener('close', handleClose)
     }
-  }, [isActive, onEmotionDetected])
+  }, [websocket, onEmotionDetected])
+
+  // Send video frames to backend
+  useEffect(() => {
+    if (!isActive || !websocket || !videoRef.current) {
+      console.log('Frame sending not started:', { 
+        isActive, 
+        websocket: !!websocket, 
+        videoRef: !!videoRef.current 
+      })
+      return
+    }
+
+    console.log('Starting frame capture interval (500ms)')
+    setIsProcessing(true)
+
+    // Send frames every 500ms (2 FPS) to avoid overwhelming the backend
+    frameIntervalRef.current = setInterval(() => {
+      captureAndSendFrame()
+    }, 500)
+
+    return () => {
+      if (frameIntervalRef.current) {
+        console.log('Stopping frame capture interval')
+        clearInterval(frameIntervalRef.current)
+        frameIntervalRef.current = null
+      }
+      setIsProcessing(false)
+    }
+  }, [isActive, websocket])
+
+  const captureAndSendFrame = () => {
+    if (!videoRef.current || !canvasRef.current || !websocket) {
+      console.log('Missing dependencies:', { 
+        video: !!videoRef.current, 
+        canvas: !!canvasRef.current, 
+        websocket: !!websocket 
+      })
+      return
+    }
+    
+    if (websocket.readyState !== WebSocket.OPEN) {
+      console.log('WebSocket not open, state:', websocket.readyState)
+      return
+    }
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+
+    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      console.log('Video not ready:', { 
+        context: !!context, 
+        videoReadyState: video.readyState,
+        expectedState: video.HAVE_ENOUGH_DATA 
+      })
+      return
+    }
+
+    try {
+      // Draw current video frame to canvas
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      // Convert canvas to base64 JPEG
+      const base64Image = canvas.toDataURL('image/jpeg', 0.8)
+
+      // Send to backend via WebSocket
+      const message = {
+        type: 'video_frame',
+        frame: base64Image,
+        timestamp: new Date().toISOString()
+      }
+      
+      websocket.send(JSON.stringify(message))
+      console.log('Frame sent to backend via WebSocket')
+    } catch (error) {
+      console.error('Error capturing/sending frame:', error)
+    }
+  }
 
   const startVideoStream = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          width: 640, 
-          height: 480,
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
           facingMode: 'user'
         },
         audio: false
@@ -86,26 +215,28 @@ export default function VideoFeed({ isActive, onEmotionDetected, height = 'h-40'
       }
     } catch (error) {
       console.error('Error accessing camera:', error)
+      alert('Unable to access camera. Please ensure camera permissions are granted.')
     }
   }
 
   const stopVideoStream = () => {
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current)
+      frameIntervalRef.current = null
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
+    
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
-  }
-
-  const startEmotionDetection = () => {
-    // The emotion detection is now handled by the backend WebSocket
-    // which processes video from the backend's camera feed
-  }
-
-  const stopEmotionDetection = () => {
-    setCurrentEmotion('')
+    
+    setCurrentEmotion(null)
+    setConfidence(0)
+    setFaceDetected(false)
     setIsProcessing(false)
   }
 
@@ -123,8 +254,6 @@ export default function VideoFeed({ isActive, onEmotionDetected, height = 'h-40'
           <canvas
             ref={canvasRef}
             className="hidden"
-            width={640}
-            height={480}
           />
         </>
       ) : (
@@ -138,29 +267,68 @@ export default function VideoFeed({ isActive, onEmotionDetected, height = 'h-40'
       )}
       
       {/* Overlay indicators */}
-      <div className="absolute top-4 left-4 flex space-x-2">
+      <div className="absolute top-4 left-4 flex flex-wrap gap-2">
         <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
           isActive 
-            ? 'bg-success-100 text-success-800' 
+            ? 'bg-green-100 text-green-800' 
             : 'bg-gray-100 text-gray-600'
         }`}>
           <Camera className="w-3 h-3" />
           <span>{isActive ? 'Live' : 'Off'}</span>
         </div>
         
+        {/* Face detection indicator */}
+        {isActive && (
+          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+            faceDetected 
+              ? 'bg-blue-100 text-blue-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              faceDetected ? 'bg-blue-600' : 'bg-yellow-600 animate-pulse'
+            }`}></div>
+            <span>{faceDetected ? 'Face Detected' : 'No Face'}</span>
+          </div>
+        )}
+        
+        {/* Gaze Focus Indicator */}
+        {isActive && faceDetected && (
+          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+            isFocusedGaze 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-orange-100 text-orange-800'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              isFocusedGaze ? 'bg-green-600' : 'bg-orange-600 animate-pulse'
+            }`}></div>
+            <span>{isFocusedGaze ? 'Focused' : `Looking ${gazeDirection}`}</span>
+          </div>
+        )}
+        
         {/* Emotion indicator */}
-        {isActive && currentEmotion && (
+        {isActive && currentEmotion && faceDetected && (
           <div className="flex items-center space-x-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
             <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
             <span className="capitalize">{currentEmotion}</span>
+            {confidence > 0 && (
+              <span className="text-[10px] opacity-75">({Math.round(confidence * 100)}%)</span>
+            )}
           </div>
         )}
         
         {/* Processing indicator */}
-        {isActive && isProcessing && (
-          <div className="flex items-center space-x-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+        {isActive && isProcessing && !error && (
+          <div className="flex items-center space-x-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
+            <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
             <span>AI Processing</span>
+          </div>
+        )}
+        
+        {/* Error indicator */}
+        {error && (
+          <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+            <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+            <span>{error}</span>
           </div>
         )}
       </div>
@@ -168,8 +336,8 @@ export default function VideoFeed({ isActive, onEmotionDetected, height = 'h-40'
       {/* Recording indicator */}
       {isActive && (
         <div className="absolute top-4 right-4">
-          <div className="flex items-center space-x-1 px-2 py-1 bg-danger-100 text-danger-800 rounded-full text-xs font-medium">
-            <div className="w-2 h-2 bg-danger-600 rounded-full animate-pulse"></div>
+          <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+            <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
             <span>Recording</span>
           </div>
         </div>

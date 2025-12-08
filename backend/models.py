@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict
 from datetime import datetime
 from bson import ObjectId
 
@@ -84,8 +84,12 @@ class StudentInSession(BaseModel):
     email: str
     joined_at: datetime
     emotion: Optional[str] = None
+    raw_emotion: Optional[str] = None
+    confidence: Optional[float] = None
     engagement: Optional[Literal["active", "passive", "distracted"]] = None
     focus_level: Optional[int] = None
+    face_detected: Optional[bool] = None
+    pose: Optional[Dict[str, float]] = None  # yaw, pitch, roll
 
 class SessionBase(BaseModel):
     session_code: str
@@ -115,19 +119,30 @@ class SessionResponse(SessionBase):
     class Config:
         populate_by_name = True
         json_encoders = {ObjectId: str}
+        # Ensure _id is serialized as both id and _id for frontend compatibility
+        by_alias = False
 
 # Emotion and Engagement Models
 class EmotionData(BaseModel):
     emotion: str
+    raw_emotion: Optional[str] = None
     confidence: float
+    engagement: Optional[Literal["active", "passive", "distracted"]] = None
+    focus_level: Optional[int] = None
+    face_detected: bool
+    pose: Optional[Dict[str, float]] = None
     timestamp: datetime
 
 class EngagementData(BaseModel):
     student_id: str
     session_id: str
     emotion: Optional[str] = None
+    raw_emotion: Optional[str] = None
+    confidence: Optional[float] = None
     engagement: Optional[Literal["active", "passive", "distracted"]] = None
     focus_level: Optional[int] = None
+    face_detected: Optional[bool] = None
+    pose: Optional[Dict[str, float]] = None
     timestamp: datetime
 
 class EngagementInDB(EngagementData):

@@ -11,3 +11,13 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 email-validator==2.1.0
 websockets==12.0
+
+# Emotion Detection Dependencies
+opencv-python==4.9.0.80
+mediapipe==0.10.9
+scikit-learn==1.4.0
+joblib==1.3.2
+numpy==1.26.3
+
+# Agora Video Calling
+agora-token-builder==1.0.0

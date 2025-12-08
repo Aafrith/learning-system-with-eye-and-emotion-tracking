@@ -54,7 +54,8 @@ export default function LearningSession({
     // Send emotion data to backend if session is active
     if (isSessionActive && sessionData.id) {
       try {
-        await fetch(`http://localhost:8000/sessions/${sessionData.id}/emotion`, {
+        const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+        await fetch(`${apiUrl}/sessions/${sessionData.id}/emotion`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

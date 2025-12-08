@@ -4,5 +4,7 @@ from .sessions_router import router as sessions_router
 from .admin_router import router as admin_router
 from .websocket_router import router as websocket_router
 from .notifications_router import router as notifications_router
+from .emotion_router import router as emotion_router
+from .agora_router import router as agora_router
 
-__all__ = ["auth_router", "sessions_router", "admin_router", "websocket_router", "notifications_router"]
+__all__ = ["auth_router", "sessions_router", "admin_router", "websocket_router", "notifications_router", "emotion_router", "agora_router"]
