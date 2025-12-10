@@ -65,11 +65,19 @@ class ConnectionManager:
     async def send_to_teacher(self, session_id: str, message: dict):
         """Send message to teacher in a session"""
         if session_id in self.active_connections:
-            for connection in self.active_connections[session_id]["teacher"]:
+            teacher_connections = self.active_connections[session_id]["teacher"]
+            if not teacher_connections:
+                print(f"⚠️ No teacher connections for session {session_id}")
+                return
+            for connection in teacher_connections:
                 try:
                     await connection.send_json(message)
+                    if message.get("type") == "student_update":
+                        print(f"✅ Sent update to teacher")
                 except Exception as e:
-                    print(f"Error sending to teacher: {e}")
+                    print(f"❌ Error sending to teacher: {e}")
+        else:
+            print(f"⚠️ Session {session_id} not in active_connections")
     
     async def send_to_students(self, session_id: str, message: dict):
         """Send message to all students in a session"""
@@ -92,6 +100,7 @@ class ConnectionManager:
             "data": student_data,
             "timestamp": datetime.utcnow().isoformat()
         }
+        print(f"🔔 Broadcasting student update for session {session_id}: {student_data.get('student_name')} - {student_data.get('emotion')}/{student_data.get('focus_level')}%")
         await self.send_to_teacher(session_id, message)
 
 manager = ConnectionManager()

@@ -210,16 +210,23 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
     if (!currentSession) {
       // Disconnect WebSocket if session ends
       if (teacherWebSocket) {
+        console.log('🔌 Closing teacher WebSocket (no session)')
         teacherWebSocket.close()
         setTeacherWebSocket(null)
       }
       return
     }
 
+    // Don't reconnect if already connected
+    if (teacherWebSocket && teacherWebSocket.readyState === WebSocket.OPEN) {
+      console.log('ℹ️ Teacher WebSocket already connected')
+      return
+    }
+
     // Get teacher ID from localStorage
     const userStr = localStorage.getItem('user')
     if (!userStr) {
-      console.error('No user data found in localStorage')
+      console.error('❌ No user data found in localStorage')
       return
     }
     
@@ -227,25 +234,26 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
     const teacherId = user.id
     
     if (!teacherId) {
-      console.error('No teacher ID found in user data')
+      console.error('❌ No teacher ID found in user data')
       return
     }
 
     // Connect to teacher WebSocket
     // Clean WebSocket URL to avoid double slashes
     const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000').replace(/\/+$/, '')
-    const ws = new WebSocket(
-      `${wsUrl}/ws/session/${currentSession.id}/teacher/${teacherId}`
-    )
+    const wsUrlFull = `${wsUrl}/ws/session/${currentSession.id}/teacher/${teacherId}`
+    
+    console.log('🔌 Connecting teacher WebSocket to:', wsUrlFull)
+    const ws = new WebSocket(wsUrlFull)
 
     ws.onopen = () => {
-      console.log('Teacher WebSocket connected')
+      console.log('✅ Teacher WebSocket connected!')
     }
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data)
-        console.log('📨 Teacher received WebSocket message:', message)
+        console.log('📨 Teacher received WebSocket message:', JSON.stringify(message, null, 2))
 
         if (message.type === 'student_update') {
           // Update student data in real-time
@@ -272,22 +280,30 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
               focus: s.focusLevel 
             })))
             
+            let wasUpdated = false
             const updatedStudents = prev.students.map(student => {
               if (student.id === studentData.student_id) {
+                wasUpdated = true
                 const updated = {
                   ...student,
-                  emotion: studentData.emotion || student.emotion,
-                  engagement: studentData.engagement || student.engagement,
-                  focusLevel: studentData.focus_level ?? student.focusLevel
+                  emotion: studentData.emotion !== undefined ? studentData.emotion : student.emotion,
+                  engagement: studentData.engagement !== undefined ? studentData.engagement : student.engagement,
+                  focusLevel: studentData.focus_level !== undefined ? studentData.focus_level : student.focusLevel
                 }
                 console.log(`✅ Updated student ${student.name}:`, {
                   before: { emotion: student.emotion, engagement: student.engagement, focus: student.focusLevel },
-                  after: { emotion: updated.emotion, engagement: updated.engagement, focus: updated.focusLevel }
+                  after: { emotion: updated.emotion, engagement: updated.engagement, focus: updated.focusLevel },
+                  changed: updated.emotion !== student.emotion || updated.engagement !== student.engagement || updated.focusLevel !== student.focusLevel
                 })
                 return updated
               }
               return student
             })
+            
+            if (!wasUpdated) {
+              console.log(`⚠️ Student ID ${studentData.student_id} not found in list!`)
+              console.log('Available student IDs:', prev.students.map(s => s.id))
+            }
 
             // If student doesn't exist, add them (e.g., when they first connect)
             const studentExists = prev.students.some(s => s.id === studentData.student_id)
@@ -326,15 +342,19 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
     }
 
     ws.onclose = () => {
-      console.log('Teacher WebSocket disconnected')
+      console.log('🔌 Teacher WebSocket disconnected')
+      setTeacherWebSocket(null)
     }
 
     setTeacherWebSocket(ws)
 
     return () => {
-      ws.close()
+      console.log('🧹 Cleanup: Closing teacher WebSocket')
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close()
+      }
     }
-  }, [currentSession, teacherName])
+  }, [currentSession?.id])
 
   // Note: Real-time student updates come from WebSocket connection
   // Students are automatically added to the session when they join via the API
