@@ -21,3 +21,6 @@ numpy==1.26.3
 
 # Agora Video Calling
 agora-token-builder==1.0.0
+
+# PDF Generation
+reportlab==4.0.9

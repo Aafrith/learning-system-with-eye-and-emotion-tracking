@@ -429,4 +429,120 @@ export const notificationApi = {
   }
 }
 
+// Reports API
+export const reportsApi = {
+  async getSessionReport(sessionId: string) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/session/${sessionId}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async getTeacherSummary(days: number = 30) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/teacher/summary?days=${days}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async getStudentSummary(days: number = 30) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/student/summary?days=${days}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async exportSessionReport(sessionId: string, format: 'json' | 'csv' | 'pdf' = 'json') {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/session/${sessionId}/export?format=${format}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (format === 'csv' || format === 'pdf') {
+      const blob = await response.blob()
+      return blob
+    }
+
+    return handleApiError(response)
+  },
+
+  async exportTeacherSummary(days: number = 30, format: 'json' | 'pdf' = 'json') {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/teacher/summary/export?days=${days}&format=${format}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (format === 'pdf') {
+      const blob = await response.blob()
+      return blob
+    }
+
+    return handleApiError(response)
+  },
+
+  async exportStudentSummary(days: number = 30, format: 'json' | 'pdf' = 'json') {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/student/summary/export?days=${days}&format=${format}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (format === 'pdf') {
+      const blob = await response.blob()
+      return blob
+    }
+
+    return handleApiError(response)
+  },
+
+  async getAdminOverview(days: number = 30) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/reports/admin/overview?days=${days}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  downloadCSV(blob: Blob, filename: string) {
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+}
+
 export { API_BASE_URL }

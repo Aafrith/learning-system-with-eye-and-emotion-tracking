@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import VideoFeed from './VideoFeed'
 import { agoraConfig, validateAgoraConfig } from '@/lib/agoraConfig'
-import { sessionApi } from '@/lib/api'
+import { sessionApi, reportsApi } from '@/lib/api'
 
 // Dynamically import Agora component to avoid SSR issues
 const InteractiveLiveStreaming = dynamic(
@@ -488,12 +488,63 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
     }
   }
 
-  const downloadReport = (sessionId: string) => {
-    alert('📊 Mock Mode: Report download simulated!\n\nIn production, this would download a PDF with:\n- Session analytics\n- Student performance\n- Engagement metrics')
+  const downloadReport = async (sessionId: string, format: 'csv' | 'pdf' = 'csv') => {
+    try {
+      setIsLoading(true)
+      console.log(`Downloading ${format.toUpperCase()} report for session:`, sessionId)
+      
+      const blob = await reportsApi.exportSessionReport(sessionId, format)
+      if (blob instanceof Blob) {
+        const extension = format === 'pdf' ? 'pdf' : 'csv'
+        reportsApi.downloadCSV(blob, `session_${sessionId}_report.${extension}`)
+        console.log(`✅ ${format.toUpperCase()} report downloaded successfully`)
+      }
+    } catch (error: any) {
+      console.error('❌ Error downloading report:', error)
+      setError('Failed to download report: ' + (error.message || 'Unknown error'))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const downloadStudentReport = (sessionId: string, studentId: string) => {
-    alert('📊 Mock Mode: Student report download simulated!')
+  const downloadStudentReport = async (sessionId: string, studentId: string) => {
+    try {
+      setIsLoading(true)
+      console.log('Downloading student report for session:', sessionId)
+      
+      // Get the full session report and filter for specific student
+      const report = await reportsApi.getSessionReport(sessionId)
+      const student = report.students.find((s: any) => s.id === studentId)
+      
+      if (!student) {
+        throw new Error('Student not found in session')
+      }
+      
+      // Create a CSV with student-specific data
+      const csvContent = `Student Report
+Session Code,${report.session_code}
+Subject,${report.subject}
+Teacher,${report.teacher_name}
+Date,${report.start_time}
+
+Student Details
+Name,${student.name}
+Email,${student.email || 'N/A'}
+Joined At,${student.joined_at}
+Emotion,${student.emotion}
+Engagement,${student.engagement}
+Focus Level,${student.focus_level}%
+`
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      reportsApi.downloadCSV(blob, `student_${student.name}_session_${sessionId}_report.csv`)
+      console.log('✅ Student report downloaded successfully')
+    } catch (error: any) {
+      console.error('❌ Error downloading student report:', error)
+      setError('Failed to download student report: ' + (error.message || 'Unknown error'))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const copySessionCode = () => {
@@ -563,10 +614,37 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
                   <h2 className="text-2xl font-bold text-gray-900">{currentSession.subject}</h2>
                   <p className="text-gray-600">Started {currentSession.startTime.toLocaleTimeString()}</p>
                 </div>
-                <button onClick={endSession} className="btn btn-danger">
-                  <Square className="w-4 h-4 mr-2" />
-                  End Session
-                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => downloadReport(currentSession.id, 'pdf')}
+                    className="btn btn-primary"
+                    disabled={isLoading}
+                    title="Download PDF Report"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => downloadReport(currentSession.id, 'csv')}
+                    className="btn btn-outline"
+                    disabled={isLoading}
+                    title="Download CSV Report"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </button>
+                  <button
+                    onClick={() => window.open(`/teacher/reports?session=${currentSession.id}`, '_blank')}
+                    className="btn btn-outline"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Analytics
+                  </button>
+                  <button onClick={endSession} className="btn btn-danger" disabled={isLoading}>
+                    <Square className="w-4 h-4 mr-2" />
+                    End Session
+                  </button>
+                </div>
               </div>
 
               {/* Session Code */}
@@ -847,7 +925,7 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
                   {pastSessions.map(session => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <div>
                         <p className="font-medium text-gray-900">{session.subject}</p>
@@ -855,13 +933,34 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
                           {session.startTime.toLocaleDateString()} • {session.students.length} students
                         </p>
                       </div>
-                      <button
-                        onClick={() => downloadReport(session.id)}
-                        className="btn btn-outline"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download Report
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => downloadReport(session.id, 'pdf')}
+                          className="btn btn-primary text-sm"
+                          disabled={isLoading}
+                          title="Download PDF Report"
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          PDF
+                        </button>
+                        <button
+                          onClick={() => downloadReport(session.id, 'csv')}
+                          className="btn btn-outline text-sm"
+                          disabled={isLoading}
+                          title="Download CSV Report"
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          CSV
+                        </button>
+                        <button
+                          onClick={() => window.open(`/teacher/reports?session=${session.id}`, '_blank')}
+                          className="btn btn-outline text-sm"
+                          title="View Full Analytics"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -4,7 +4,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 from database import connect_to_mongo, close_mongo_connection
 from config import settings
-from routers import auth_router, sessions_router, admin_router, websocket_router, notifications_router, emotion_router, agora_router
+from routers import auth_router, sessions_router, admin_router, websocket_router, notifications_router, emotion_router, agora_router, reports_router
 
 # Lifespan context manager for startup and shutdown events
 @asynccontextmanager
@@ -49,6 +49,7 @@ app.include_router(admin_router)
 app.include_router(notifications_router)
 app.include_router(emotion_router)
 app.include_router(agora_router)
+app.include_router(reports_router)
 app.include_router(websocket_router)
 
 # Root endpoint
