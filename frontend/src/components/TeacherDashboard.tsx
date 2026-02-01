@@ -802,7 +802,7 @@ Focus Level,${student.focus_level}%
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {/* Student Activity Notification */}
       {studentActivityNotification && (
         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-pulse ${
@@ -820,12 +820,12 @@ Focus Level,${student.focus_level}%
       )}
 
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Teacher Dashboard</h1>
-              <p className="text-gray-600">Welcome, {teacherName}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Teacher Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-400">Welcome, {teacherName}</p>
             </div>
             <div className="flex items-center space-x-3">
               {/* Back to Home button removed - use Navbar instead */}
@@ -839,7 +839,7 @@ Focus Level,${student.focus_level}%
         {currentSession ? (
           <div className="space-y-6">
             {/* Session Header */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
@@ -866,8 +866,8 @@ Focus Level,${student.focus_level}%
                       </>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">{currentSession.subject}</h2>
-                  <p className="text-gray-600">Started {currentSession.startTime.toLocaleTimeString()}</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{currentSession.subject}</h2>
+                  <p className="text-gray-600 dark:text-gray-400">Started {currentSession.startTime.toLocaleTimeString()}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                   <button
@@ -903,15 +903,15 @@ Focus Level,${student.focus_level}%
               </div>
 
               {/* Session Code */}
-              <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
+              <div className="bg-primary-50 dark:bg-primary-900/30 rounded-lg p-4 border border-primary-200 dark:border-primary-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Session Code for Students</p>
-                    <p className="text-3xl font-bold text-primary-600 font-mono tracking-wider">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Session Code for Students</p>
+                    <p className="text-3xl font-bold text-primary-600 dark:text-primary-400 font-mono tracking-wider">
                       {currentSession.sessionCode}
                     </p>
                     {isLiveStreaming && (
-                      <p className="text-xs text-green-600 mt-2 flex items-center">
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center">
                         <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse mr-2"></div>
                         Students can now join your live stream with this code
                       </p>
@@ -954,11 +954,11 @@ Focus Level,${student.focus_level}%
               </div>
 
               {/* Custom Notification Button */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Send Custom Notification</p>
-                    <p className="text-xs text-gray-500">Send a custom message to all students</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Send Custom Notification</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Send a custom message to all students</p>
                   </div>
                   <button 
                     onClick={() => setShowNotifyModal(true)}
@@ -973,32 +973,32 @@ Focus Level,${student.focus_level}%
 
             {/* Session Stats */}
             <div className="grid md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Active Students</p>
-                    <p className="text-3xl font-bold text-gray-900">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Active Students</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
                       {currentSession.students.length}/{currentSession.maxStudents}
                     </p>
                   </div>
-                  <Users className="w-8 h-8 text-primary-600" />
+                  <Users className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Avg. Engagement</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Avg. Engagement</p>
                     <p className="text-3xl font-bold text-success-600">{getAverageEngagement()}%</p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-success-600" />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Highly Engaged</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Highly Engaged</p>
                     <p className="text-3xl font-bold text-success-600">
                       {currentSession.students.filter(s => s.engagement === 'active').length}
                     </p>
@@ -1007,10 +1007,10 @@ Focus Level,${student.focus_level}%
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Needs Attention</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Needs Attention</p>
                     <p className="text-3xl font-bold text-danger-600">
                       {currentSession.students.filter(s => s.engagement === 'distracted').length}
                     </p>
@@ -1024,9 +1024,9 @@ Focus Level,${student.focus_level}%
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Video Preview */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                       <Video className="w-5 h-5 mr-2" />
                       {isLiveStreaming ? 'Live Video Streaming' : 'Your Camera Preview'}
                     </h3>
@@ -1075,7 +1075,7 @@ Focus Level,${student.focus_level}%
                           onEmotionDetected={(emotion) => console.log('Teacher emotion:', emotion)}
                           height="h-96"
                         />
-                        <div className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
                           {agoraConfigValid ? (
                             <p><strong>📹 Ready to stream:</strong> Click "Start Streaming" to broadcast live video to your students.</p>
                           ) : (
@@ -1090,9 +1090,9 @@ Focus Level,${student.focus_level}%
 
               {/* Quick Tips */}
               <div className="lg:col-span-1">
-                <div className="bg-gradient-to-br from-primary-50 to-success-50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">🎥 Presentation Tips</h3>
-                  <ul className="space-y-3 text-sm text-gray-700">
+                <div className="bg-gradient-to-br from-primary-50 to-success-50 dark:from-primary-900/30 dark:to-success-900/30 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">🎥 Presentation Tips</h3>
+                  <ul className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
                     <li className="flex items-start">
                       <div className="w-1.5 h-1.5 bg-primary-600 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                       <span>Look at the camera when speaking</span>
@@ -1119,52 +1119,52 @@ Focus Level,${student.focus_level}%
             </div>
 
             {/* Students List */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Overview</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Student Overview</h3>
               <div className="space-y-3">
                 {currentSession.students.length === 0 ? (
                   <div className="text-center py-12">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No students have joined yet</p>
-                    <p className="text-sm text-gray-500 mt-2">Share the session code with your students</p>
+                    <Users className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">No students have joined yet</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Share the session code with your students</p>
                   </div>
                 ) : (
                   currentSession.students.map(student => (
                     <div
                       key={student.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                          <span className="text-primary-600 font-semibold">
+                        <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center">
+                          <span className="text-primary-600 dark:text-primary-400 font-semibold">
                             {student.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{student.name}</p>
-                          <p className="text-sm text-gray-500">Joined {student.joinedAt.toLocaleTimeString()}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{student.name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Joined {student.joinedAt.toLocaleTimeString()}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-4">
                         <div className="text-center min-w-[100px]">
-                          <p className="text-xs text-gray-500 mb-1">Emotion</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Emotion</p>
                           <div className={`flex items-center justify-center space-x-2 px-3 py-1 rounded-lg ${getEmotionColor(student.emotion)}`}>
                             <span className="text-lg">{getEmotionEmoji(student.emotion)}</span>
                             <span className="text-sm font-medium capitalize">{student.emotion}</span>
                           </div>
                         </div>
                         <div className="text-center min-w-[110px]">
-                          <p className="text-xs text-gray-500 mb-1">Engagement</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Engagement</p>
                           <span className={`text-sm font-medium px-3 py-1.5 rounded-full ${getEngagementColor(student.engagement)}`}>
                             {student.engagement}
                           </span>
                         </div>
                         <div className="text-center min-w-[80px]">
-                          <p className="text-xs text-gray-500 mb-1">Focus</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Focus</p>
                           <div className="flex flex-col items-center">
-                            <span className="text-sm font-semibold">{Math.round(student.avgFocusLevel || student.focusLevel)}%</span>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                            <span className="text-sm font-semibold dark:text-white">{Math.round(student.avgFocusLevel || student.focusLevel)}%</span>
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-1">
                               <div 
                                 className={`h-1.5 rounded-full transition-all ${
                                   (student.avgFocusLevel || student.focusLevel) >= 70 ? 'bg-success-600' : 
@@ -1195,13 +1195,13 @@ Focus Level,${student.focus_level}%
           /* No Active Session */
           <div className="max-w-4xl mx-auto">
             {/* Create Session Card */}
-            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 mb-8">
               <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-8 h-8 text-primary-600" />
+                <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Play className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Create a Live Session</h2>
-                <p className="text-gray-600">Start monitoring student engagement in real-time</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Create a Live Session</h2>
+                <p className="text-gray-600 dark:text-gray-400">Start monitoring student engagement in real-time</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -1214,17 +1214,17 @@ Focus Level,${student.focus_level}%
 
             {/* Past Sessions */}
             {pastSessions.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Past Sessions</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Past Sessions</h3>
                 <div className="space-y-3">
                   {pastSessions.map(session => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{session.subject}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-medium text-gray-900 dark:text-white">{session.subject}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           Code: {session.sessionCode} • {session.startTime.toLocaleDateString()} • {session.students.length} students
                         </p>
                       </div>
@@ -1297,19 +1297,19 @@ Focus Level,${student.focus_level}%
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-md w-full"
             >
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Create New Session</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Create New Session</h3>
               
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Subject / Topic
                   </label>
                   <input
@@ -1317,12 +1317,12 @@ Focus Level,${student.focus_level}%
                     value={newSessionData.subject}
                     onChange={(e) => setNewSessionData({ ...newSessionData, subject: e.target.value })}
                     placeholder="e.g., Mathematics, Physics, etc."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Maximum Students
                   </label>
                   <input
@@ -1331,7 +1331,7 @@ Focus Level,${student.focus_level}%
                     onChange={(e) => setNewSessionData({ ...newSessionData, maxStudents: parseInt(e.target.value) })}
                     min="1"
                     max="100"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -1455,27 +1455,27 @@ Focus Level,${student.focus_level}%
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-lg w-full"
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                  <Bell className="w-6 h-6 text-primary-600" />
+                <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Send Notification to Students</h3>
-                  <p className="text-sm text-gray-500">This will be sent to all students</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Send Notification to Students</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">This will be sent to all students</p>
                 </div>
               </div>
               
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notification Title *
                   </label>
                   <input
@@ -1483,12 +1483,12 @@ Focus Level,${student.focus_level}%
                     value={notificationData.title}
                     onChange={(e) => setNotificationData({ ...notificationData, title: e.target.value })}
                     placeholder="e.g., New Session Available!"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Message *
                   </label>
                   <textarea
@@ -1499,18 +1499,18 @@ Focus Level,${student.focus_level}%
                       : "Enter your message to students..."
                     }
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notification Type
                   </label>
                   <select
                     value={notificationData.type}
                     onChange={(e) => setNotificationData({ ...notificationData, type: e.target.value as any })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="info">ℹ️ Information</option>
                     <option value="success">✅ Success</option>
@@ -1519,8 +1519,8 @@ Focus Level,${student.focus_level}%
                 </div>
 
                 {currentSession && (
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-sm text-blue-700">
+                  <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
+                    <p className="text-sm text-blue-700 dark:text-blue-400">
                       <strong>Note:</strong> This notification will include your active session details 
                       (Code: <span className="font-mono font-bold">{currentSession.sessionCode}</span>)
                     </p>

@@ -128,10 +128,10 @@ export default function AdminDashboard() {
   // Show loading while auth is initializing
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     )
@@ -206,10 +206,10 @@ export default function AdminDashboard() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading admin dashboard...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading admin dashboard...</p>
           </div>
         </div>
       </>
@@ -219,9 +219,9 @@ export default function AdminDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <div className="bg-white shadow">
+        <div className="bg-white dark:bg-gray-800 shadow">
           <div className="container mx-auto px-6 py-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-4">
@@ -229,8 +229,8 @@ export default function AdminDashboard() {
                   <Shield className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                  <p className="text-sm text-gray-600">System Management & Analytics</p>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">System Management & Analytics</p>
                 </div>
               </div>
             </div>
@@ -243,12 +243,12 @@ export default function AdminDashboard() {
           {statCards.map((stat, index) => {
             const Icon = stat.icon
             return (
-              <motion.div
+                <motion.div
                 key={stat.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
@@ -256,8 +256,8 @@ export default function AdminDashboard() {
                   </div>
                   <span className="text-sm font-semibold text-green-600">{stat.trend}</span>
                 </div>
-                <h3 className="text-gray-600 text-sm font-medium mb-1">{stat.title}</h3>
-                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-1">{stat.title}</h3>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
               </motion.div>
             )
           })}
@@ -268,42 +268,42 @@ export default function AdminDashboard() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-sm p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <div className="flex items-center space-x-3 mb-4">
               <GraduationCap className="w-6 h-6 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Teachers</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Teachers</h3>
             </div>
-            <p className="text-4xl font-bold text-gray-900">{stats.teachersCount}</p>
-            <p className="text-sm text-gray-600 mt-2">Active educators</p>
+            <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.teachersCount}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Active educators</p>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <div className="flex items-center space-x-3 mb-4">
               <BookOpen className="w-6 h-6 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Students</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Students</h3>
             </div>
-            <p className="text-4xl font-bold text-gray-900">{stats.studentsCount}</p>
-            <p className="text-sm text-gray-600 mt-2">Enrolled learners</p>
+            <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.studentsCount}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Enrolled learners</p>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-sm p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6"
           >
             <div className="flex items-center space-x-3 mb-4">
               <Shield className="w-6 h-6 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Admins</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Admins</h3>
             </div>
-            <p className="text-4xl font-bold text-gray-900">{stats.adminsCount}</p>
-            <p className="text-sm text-gray-600 mt-2">System administrators</p>
+            <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.adminsCount}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">System administrators</p>
           </motion.div>
         </div>
 
@@ -311,13 +311,13 @@ export default function AdminDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl shadow-sm"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow-sm"
         >
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">User Management</h2>
-                <p className="text-sm text-gray-600 mt-1">Manage all system users</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">User Management</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Manage all system users</p>
               </div>
               <div className="flex space-x-3">
                 <button 
@@ -328,7 +328,7 @@ export default function AdminDashboard() {
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                   <span>Refresh</span>
                 </button>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2">
+                <button className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2">
                   <Download className="w-4 h-4" />
                   <span>Export</span>
                 </button>
@@ -344,13 +344,13 @@ export default function AdminDashboard() {
                   placeholder="Search users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value as any)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="all">All Roles</option>
                 <option value="teacher">Teachers</option>
@@ -363,57 +363,57 @@ export default function AdminDashboard() {
           {/* Users Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Sessions
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Last Login
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.role === 'admin' ? 'bg-green-100 text-green-800' :
-                        user.role === 'teacher' ? 'bg-purple-100 text-purple-800' :
-                        'bg-blue-100 text-blue-800'
+                        user.role === 'admin' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                        user.role === 'teacher' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
                         {user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        user.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
                       }`}>
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {user.sessionsCount}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {user.lastLogin.toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

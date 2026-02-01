@@ -44,13 +44,13 @@ export default function Notepad({ notes, onNotesChange }: NotepadProps) {
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
           <BookOpen className="w-5 h-5 mr-2" />
           Learning Notes
         </h3>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
         >
           {isExpanded ? 'Collapse' : 'Expand'}
         </button>
@@ -61,17 +61,17 @@ export default function Notepad({ notes, onNotesChange }: NotepadProps) {
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder="Take notes during your learning session...&#10;&#10;• Key concepts learned&#10;• Important points to remember&#10;• Questions or areas for further study&#10;• Personal insights and reflections"
-          className="w-full h-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+          className="w-full h-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
         />
       </div>
 
       {/* Note Statistics */}
-      <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
+      <div className="flex items-center justify-between mt-3 text-sm text-gray-600 dark:text-gray-400">
         <div className="flex space-x-4">
           <span>{wordCount} words</span>
           <span>{charCount} characters</span>
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 dark:text-gray-500">
           Auto-saved locally
         </div>
       </div>
@@ -122,10 +122,10 @@ export default function Notepad({ notes, onNotesChange }: NotepadProps) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+          className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
         >
-          <h5 className="text-sm font-medium text-blue-900 mb-1">Note-taking Tips:</h5>
-          <ul className="text-xs text-blue-700 space-y-1">
+          <h5 className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">Note-taking Tips:</h5>
+          <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
             <li>• Use bullet points for key concepts</li>
             <li>• Write questions as they come to mind</li>
             <li>• Note timestamps for important moments</li>

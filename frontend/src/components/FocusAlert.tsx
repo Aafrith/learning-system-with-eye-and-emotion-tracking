@@ -29,38 +29,38 @@ export default function FocusAlert({ onClose }: FocusAlertProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+        className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6"
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Alert Content */}
         <div className="text-center">
-          <div className="w-16 h-16 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-warning-100 dark:bg-warning-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-8 h-8 text-warning-600" />
           </div>
           
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
             You are losing focus
           </h3>
           
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             Our gaze tracking has detected that you haven't been focused on the screen 
             for more than 8 minutes. Consider taking a break or refocusing on your learning.
           </p>
 
           {/* Focus Tips */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-            <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 text-left">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center">
               <Focus className="w-4 h-4 mr-2" />
               Focus Tips:
             </h4>
-            <ul className="text-sm text-blue-800 space-y-1">
+            <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
               <li>• Take a 5-minute break to refresh your mind</li>
               <li>• Adjust your seating position and lighting</li>
               <li>• Close distracting applications or tabs</li>

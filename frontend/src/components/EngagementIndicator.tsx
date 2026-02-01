@@ -47,17 +47,17 @@ export default function EngagementIndicator({
 
   const getEngagementColor = (level: string) => {
     switch (level) {
-      case 'active': return 'text-success-600 bg-success-50 border-success-200'
-      case 'passive': return 'text-warning-600 bg-warning-50 border-warning-200'
-      case 'distracted': return 'text-danger-600 bg-danger-50 border-danger-200'
-      default: return 'text-gray-600 bg-gray-50 border-gray-200'
+      case 'active': return 'text-success-600 bg-success-50 dark:bg-success-900/30 border-success-200 dark:border-success-800'
+      case 'passive': return 'text-warning-600 bg-warning-50 dark:bg-warning-900/30 border-warning-200 dark:border-warning-800'
+      case 'distracted': return 'text-danger-600 bg-danger-50 dark:bg-danger-900/30 border-danger-200 dark:border-danger-800'
+      default: return 'text-gray-600 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
     }
   }
 
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
           <TrendingUp className="w-5 h-5 mr-2" />
           Engagement Analytics
         </h3>
@@ -70,32 +70,32 @@ export default function EngagementIndicator({
       <div className="grid gap-6">
         {/* Current Status */}
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Current Status</h4>
+          <h4 className="font-medium text-gray-900 dark:text-white">Current Status</h4>
           
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Current Emotion:</span>
-              <span className="font-medium text-gray-900 capitalize">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Current Emotion:</span>
+              <span className="font-medium text-gray-900 dark:text-white capitalize">
                 {currentEmotion || 'Detecting...'}
               </span>
             </div>
             
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Engagement Level:</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Engagement Level:</span>
               <span className={`font-medium capitalize ${getEngagementColor(currentLevel).split(' ')[0]}`}>
                 {currentLevel}
               </span>
             </div>
             
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Total Time:</span>
-              <span className="font-medium">{total} minutes</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Total Time:</span>
+              <span className="font-medium dark:text-white">{total} minutes</span>
             </div>
           </div>
 
           {/* Engagement Breakdown */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm dark:text-gray-300">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-4 h-4 text-success-600" />
                 <span>Active</span>
@@ -103,7 +103,7 @@ export default function EngagementIndicator({
               <span className="font-medium">{engagement.active} min ({activePercentage.toFixed(1)}%)</span>
             </div>
             
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <motion.div
                 className="bg-success-600 h-2 rounded-full"
                 initial={{ width: 0 }}
@@ -112,7 +112,7 @@ export default function EngagementIndicator({
               />
             </div>
             
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm dark:text-gray-300">
               <div className="flex items-center space-x-2">
                 <Clock className="w-4 h-4 text-warning-600" />
                 <span>Passive</span>
@@ -120,7 +120,7 @@ export default function EngagementIndicator({
               <span className="font-medium">{engagement.passive} min ({passivePercentage.toFixed(1)}%)</span>
             </div>
             
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <motion.div
                 className="bg-warning-600 h-2 rounded-full"
                 initial={{ width: 0 }}
@@ -129,7 +129,7 @@ export default function EngagementIndicator({
               />
             </div>
             
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm dark:text-gray-300">
               <div className="flex items-center space-x-2">
                 <AlertTriangle className="w-4 h-4 text-danger-600" />
                 <span>Distracted</span>
@@ -137,7 +137,7 @@ export default function EngagementIndicator({
               <span className="font-medium">{engagement.distracted} min ({distractedPercentage.toFixed(1)}%)</span>
             </div>
             
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <motion.div
                 className="bg-danger-600 h-2 rounded-full"
                 initial={{ width: 0 }}

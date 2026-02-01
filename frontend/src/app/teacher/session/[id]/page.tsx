@@ -146,10 +146,10 @@ export default function SessionDetailsPage() {
     return (
       <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <Navbar />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading session details...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading session details...</p>
           </div>
         </div>
       </ProtectedRoute>
@@ -160,11 +160,11 @@ export default function SessionDetailsPage() {
     return (
       <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <Navbar />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Session</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Error Loading Session</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
             <button
               onClick={() => router.push('/teacher/dashboard')}
               className="btn btn-primary"
@@ -181,11 +181,11 @@ export default function SessionDetailsPage() {
     return (
       <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <Navbar />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
             <Eye className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Not Found</h2>
-            <p className="text-gray-600 mb-4">The requested session could not be found.</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Session Not Found</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">The requested session could not be found.</p>
             <button
               onClick={() => router.push('/teacher/dashboard')}
               className="btn btn-primary"
@@ -201,7 +201,7 @@ export default function SessionDetailsPage() {
   return (
     <ProtectedRoute allowedRoles={['teacher', 'admin']}>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="container mx-auto px-6 py-8">
           {/* Header */}
           <motion.div
@@ -211,7 +211,7 @@ export default function SessionDetailsPage() {
           >
             <button
               onClick={() => router.push('/teacher/dashboard')}
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors mb-4"
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
               <span className="font-medium">Back to Dashboard</span>
@@ -219,8 +219,8 @@ export default function SessionDetailsPage() {
             
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{sessionData.subject}</h1>
-                <p className="text-gray-600 mt-1">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{sessionData.subject}</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
                   Session Code: <span className="font-mono font-semibold">{sessionData.session_code}</span>
                 </p>
               </div>
@@ -228,8 +228,8 @@ export default function SessionDetailsPage() {
               <div className="flex items-center gap-3">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   sessionData.is_active 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-gray-100 text-gray-700'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}>
                   {sessionData.is_active ? 'Active' : 'Ended'}
                 </span>
@@ -260,40 +260,40 @@ export default function SessionDetailsPage() {
             transition={{ delay: 0.1 }}
             className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
           >
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="w-5 h-5 text-primary-600" />
-                <span className="text-sm text-gray-600">Start Time</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Start Time</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {new Date(sessionData.start_time).toLocaleString()}
               </p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <Clock className="w-5 h-5 text-primary-600" />
-                <span className="text-sm text-gray-600">Duration</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Duration</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {sessionData.duration_minutes} minutes
               </p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <Users className="w-5 h-5 text-primary-600" />
-                <span className="text-sm text-gray-600">Students</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Students</span>
               </div>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {sessionData.statistics?.total_students ?? sessionData.students?.length ?? 0}
               </p>
             </div>
             
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <TrendingUp className="w-5 h-5 text-primary-600" />
-                <span className="text-sm text-gray-600">Avg Focus</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Avg Focus</span>
               </div>
               <p className={`text-lg font-semibold ${getFocusColor(sessionData.statistics?.avg_focus ?? 0)}`}>
                 {sessionData.statistics?.avg_focus ?? 0}%
@@ -309,45 +309,45 @@ export default function SessionDetailsPage() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
           >
             {/* Engagement Stats */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-primary-600" />
                 Engagement Distribution
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-green-600 font-medium">Active</span>
-                  <span className="font-bold">{sessionData.statistics?.engagement_distribution?.active ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.engagement_distribution?.active ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-yellow-600 font-medium">Passive</span>
-                  <span className="font-bold">{sessionData.statistics?.engagement_distribution?.passive ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.engagement_distribution?.passive ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-red-600 font-medium">Distracted</span>
-                  <span className="font-bold">{sessionData.statistics?.engagement_distribution?.distracted ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.engagement_distribution?.distracted ?? 0}</span>
                 </div>
               </div>
             </div>
 
             {/* Focus Distribution */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-primary-600" />
                 Focus Level Distribution
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-green-600 font-medium">High (70%+)</span>
-                  <span className="font-bold">{sessionData.statistics?.focus_distribution?.high ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.focus_distribution?.high ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-yellow-600 font-medium">Medium (40-70%)</span>
-                  <span className="font-bold">{sessionData.statistics?.focus_distribution?.medium ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.focus_distribution?.medium ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-red-600 font-medium">Low (&lt;40%)</span>
-                  <span className="font-bold">{sessionData.statistics?.focus_distribution?.low ?? 0}</span>
+                  <span className="font-bold dark:text-white">{sessionData.statistics?.focus_distribution?.low ?? 0}</span>
                 </div>
               </div>
             </div>
@@ -359,15 +359,15 @@ export default function SessionDetailsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white rounded-xl shadow-lg p-6 mb-8"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">😊 Emotion Distribution</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">😊 Emotion Distribution</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 {Object.entries(sessionData.statistics.emotions).map(([emotion, count]) => (
-                  <div key={emotion} className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div key={emotion} className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <span className="text-3xl mb-2 block">{getEmotionEmoji(emotion)}</span>
-                    <p className="text-sm text-gray-600 capitalize">{emotion}</p>
-                    <p className="text-lg font-bold text-gray-900">{count}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">{emotion}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{count}</p>
                   </div>
                 ))}
               </div>
@@ -379,9 +379,9 @@ export default function SessionDetailsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl shadow-lg p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Users className="w-5 h-5 text-primary-600" />
               Student Performance
             </h3>
@@ -389,33 +389,33 @@ export default function SessionDetailsPage() {
             {sessionData.students && sessionData.students.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Joined At</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Emotion</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Engagement</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Focus Level</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Joined At</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Emotion</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Engagement</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Focus Level</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {sessionData.students.map((student) => (
-                      <tr key={student.id} className="hover:bg-gray-50">
+                      <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-4 py-3">
                           <div>
-                            <p className="font-medium text-gray-900">{student.name}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{student.name}</p>
                             {student.email && (
-                              <p className="text-sm text-gray-500">{student.email}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           {new Date(student.joined_at).toLocaleTimeString()}
                         </td>
                         <td className="px-4 py-3">
                           <span className="flex items-center gap-2">
                             <span className="text-xl">{getEmotionEmoji(student.emotion)}</span>
-                            <span className="text-sm capitalize">{student.emotion}</span>
+                            <span className="text-sm capitalize dark:text-gray-300">{student.emotion}</span>
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -432,7 +432,7 @@ export default function SessionDetailsPage() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Users className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                 <p>No students joined this session</p>
               </div>

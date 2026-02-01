@@ -130,7 +130,7 @@ function ChangePasswordPage() {
   return (
     <ProtectedRoute>
       <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -143,7 +143,7 @@ function ChangePasswordPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
             onClick={() => router.push(`/${user?.role}/dashboard`)}
-            className="mb-6 flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+            className="mb-6 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Back to Dashboard</span>
@@ -156,8 +156,8 @@ function ChangePasswordPage() {
                 <ShieldCheck className="w-8 h-8 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Change Password</h1>
-            <p className="text-gray-600">Update your password to keep your account secure</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Change Password</h1>
+            <p className="text-gray-600 dark:text-gray-400">Update your password to keep your account secure</p>
           </div>
 
           {/* Message Alert */}
@@ -168,16 +168,16 @@ function ChangePasswordPage() {
               exit={{ opacity: 0, y: -10 }}
               className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
                 message.type === 'success'
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
+                  ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
               }`}
             >
               {message.type === 'success' ? (
-                <Check className="w-5 h-5 text-green-600" />
+                <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-600" />
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               )}
-              <span className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+              <span className={message.type === 'success' ? 'text-green-800 dark:text-green-400' : 'text-red-800 dark:text-red-400'}>
                 {message.text}
               </span>
             </motion.div>
@@ -188,12 +188,12 @@ function ChangePasswordPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white rounded-2xl shadow-xl p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Current Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Current Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -205,7 +205,7 @@ function ChangePasswordPage() {
                     name="oldPassword"
                     value={formData.oldPassword}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your current password"
                     disabled={isSubmitting}
                   />
@@ -225,7 +225,7 @@ function ChangePasswordPage() {
 
               {/* New Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   New Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -237,7 +237,7 @@ function ChangePasswordPage() {
                     name="newPassword"
                     value={formData.newPassword}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Enter your new password"
                     disabled={isSubmitting}
                   />
@@ -258,7 +258,7 @@ function ChangePasswordPage() {
                 {formData.newPassword && (
                   <div className="mt-2">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600">Password Strength:</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Password Strength:</span>
                       <span className={`text-xs font-semibold ${
                         passwordStrength.label === 'Weak' ? 'text-red-600' :
                         passwordStrength.label === 'Medium' ? 'text-yellow-600' :
@@ -267,7 +267,7 @@ function ChangePasswordPage() {
                         {passwordStrength.label}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
                         style={{ width: `${(passwordStrength.score / 6) * 100}%` }}
@@ -278,8 +278,8 @@ function ChangePasswordPage() {
 
                 {/* Password Requirements */}
                 <div className="mt-3 space-y-1">
-                  <p className="text-xs text-gray-600">Password must contain:</p>
-                  <ul className="text-xs text-gray-600 space-y-1 ml-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Password must contain:</p>
+                  <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 ml-4">
                     <li className={formData.newPassword.length >= 8 ? 'text-green-600' : ''}>
                       • At least 8 characters
                     </li>
@@ -301,7 +301,7 @@ function ChangePasswordPage() {
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Confirm New Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -313,7 +313,7 @@ function ChangePasswordPage() {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Confirm your new password"
                     disabled={isSubmitting}
                   />
@@ -335,9 +335,9 @@ function ChangePasswordPage() {
               </div>
 
               {/* Security Tips */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-900 mb-2">Security Tips</h4>
-                <ul className="text-xs text-blue-800 space-y-1">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Security Tips</h4>
+                <ul className="text-xs text-blue-800 dark:text-blue-400 space-y-1">
                   <li>• Use a unique password that you don't use elsewhere</li>
                   <li>• Avoid using personal information in your password</li>
                   <li>• Consider using a password manager</li>
@@ -362,7 +362,7 @@ function ChangePasswordPage() {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => router.back()}
                   disabled={isSubmitting}
-                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </motion.button>

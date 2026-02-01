@@ -594,14 +594,14 @@ Duration: ${formatDuration(sessionDuration)}
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-              <p className="text-gray-600">Welcome, {studentName}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Student Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-400">Welcome, {studentName}</p>
               {/* <span className="inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">DEMO MODE</span> */}
             </div>
             <div className="flex items-center space-x-3">
@@ -616,7 +616,7 @@ Duration: ${formatDuration(sessionDuration)}
           /* In Session View */
           <div className="max-w-6xl mx-auto">
             {/* Session Header */}
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
@@ -645,14 +645,14 @@ Duration: ${formatDuration(sessionDuration)}
                       </>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">{currentSession.subject}</h2>
-                  <p className="text-gray-600">Teacher: {currentSession.teacherName}</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{currentSession.subject}</h2>
+                  <p className="text-gray-600 dark:text-gray-400">Teacher: {currentSession.teacherName}</p>
                 </div>
                 <div className="text-right space-y-3">
                   {/* Real-time Emotion Display */}
                   {stats.currentEmotion && (
                     <div className="mb-3">
-                      <p className="text-sm text-gray-500 mb-1">Your Current Emotion</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Your Current Emotion</p>
                       <div className={`px-4 py-2 rounded-lg font-semibold text-center ${getEmotionColor(stats.currentEmotion)}`}>
                         <span className="text-2xl mr-2">{getEmotionEmoji(stats.currentEmotion)}</span>
                         <span className="capitalize">{stats.currentEmotion}</span>
@@ -660,8 +660,8 @@ Duration: ${formatDuration(sessionDuration)}
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">Session Duration</p>
-                    <p className="text-2xl font-bold text-gray-900 font-mono">{formatDuration(sessionDuration)}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Session Duration</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white font-mono">{formatDuration(sessionDuration)}</p>
                   </div>
                   <button onClick={handleLeaveSession} className="btn btn-danger w-full">
                     <LogOut className="w-4 h-4 mr-2" />
@@ -675,14 +675,14 @@ Duration: ${formatDuration(sessionDuration)}
               {/* Main Area */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Teacher Video Feed / Live Stream */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                       <Users className="w-5 h-5 mr-2" />
                       Teacher: {currentSession.teacherName}
                     </h3>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm px-3 py-1 bg-primary-100 text-primary-800 rounded-full font-medium flex items-center">
+                      <span className="text-sm px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-400 rounded-full font-medium flex items-center">
                         {isWatchingStream ? (
                           <>
                             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
@@ -703,10 +703,10 @@ Duration: ${formatDuration(sessionDuration)}
                       {!isWatchingStream && (
                         <button
                           onClick={() => setIsTeacherVideoFullscreen(true)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                           title="Fullscreen"
                         >
-                          <Maximize className="w-5 h-5 text-gray-600" />
+                          <Maximize className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </button>
                       )}
                     </div>
@@ -750,9 +750,9 @@ Duration: ${formatDuration(sessionDuration)}
                 </div>
 
                 {/* Student Video Feed */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                       <Eye className="w-5 h-5 mr-2" />
                       Your Camera Feed
                     </h3>
@@ -785,8 +785,8 @@ Duration: ${formatDuration(sessionDuration)}
               {/* Sidebar */}
               <div className="lg:col-span-1 space-y-6">
                 {/* Engagement Analytics */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Engagement Analytics</h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Engagement Analytics</h3>
                   <EngagementIndicator
                     engagement={stats.engagementData}
                     currentLevel={stats.engagement}
@@ -795,35 +795,35 @@ Duration: ${formatDuration(sessionDuration)}
                 </div>
 
                 {/* Real-time Status */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                     <Brain className="w-5 h-5 mr-2" />
                     Real-time Status
                   </h3>
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Current Emotion:</span>
-                      <span className="font-medium text-gray-900 capitalize">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Current Emotion:</span>
+                      <span className="font-medium text-gray-900 dark:text-white capitalize">
                         {stats.currentEmotion || 'Detecting...'}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Engagement:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Engagement:</span>
                       <span className={`font-medium capitalize ${getEngagementColor(stats.engagement)}`}>
                         {stats.engagement}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Focus Level:</span>
-                      <span className="font-medium text-gray-900">{stats.focusLevel}%</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Focus Level:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{stats.focusLevel}%</span>
                     </div>
                     
                     {/* Gaze Focus Status */}
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <span className="text-sm text-gray-600 flex items-center">
+                    <div className="flex items-center justify-between pt-2 border-t dark:border-gray-700">
+                      <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
                         <Eye className="w-4 h-4 mr-1" />
                         Gaze Focus:
                       </span>
@@ -843,13 +843,13 @@ Duration: ${formatDuration(sessionDuration)}
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t">
+                    <div className="pt-4 border-t dark:border-gray-700">
                       <div className="mb-2">
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-600">Overall Progress</span>
-                          <span className="font-medium">{stats.focusLevel}%</span>
+                          <span className="text-gray-600 dark:text-gray-400">Overall Progress</span>
+                          <span className="font-medium dark:text-white">{stats.focusLevel}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div 
                             className={`h-2 rounded-full transition-all ${
                               stats.focusLevel >= 70 ? 'bg-success-600' : 
@@ -862,7 +862,7 @@ Duration: ${formatDuration(sessionDuration)}
                       
                       {/* Gaze Focus Progress */}
                       <div className="mt-3">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                           <span>Screen Focus</span>
                           <span>
                             {stats.gazeData.focused + stats.gazeData.unfocused > 0
@@ -870,7 +870,7 @@ Duration: ${formatDuration(sessionDuration)}
                               : 100}%
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                           <div 
                             className="h-1.5 rounded-full transition-all bg-blue-500"
                             style={{ 
@@ -888,9 +888,9 @@ Duration: ${formatDuration(sessionDuration)}
                 </div>
 
                 {/* Engagement Tips */}
-                <div className="bg-gradient-to-br from-primary-50 to-success-50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">💡 Tips for Better Engagement</h3>
-                  <ul className="space-y-3 text-sm text-gray-700">
+                <div className="bg-gradient-to-br from-primary-50 to-success-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">💡 Tips for Better Engagement</h3>
+                  <ul className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
                     <li className="flex items-start">
                       <div className="w-1.5 h-1.5 bg-primary-600 rounded-full mt-2 mr-2 flex-shrink-0"></div>
                       <span>Maintain eye contact with the camera</span>
@@ -915,18 +915,18 @@ Duration: ${formatDuration(sessionDuration)}
         ) : (
           /* Join Session View */
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
               <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-success-100 dark:bg-success-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                   <LogIn className="w-8 h-8 text-success-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Join a Session</h2>
-                <p className="text-gray-600">Enter the code provided by your teacher</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Join a Session</h2>
+                <p className="text-gray-600 dark:text-gray-400">Enter the code provided by your teacher</p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Session Code
                   </label>
                   <input
@@ -936,7 +936,7 @@ Duration: ${formatDuration(sessionDuration)}
                     onKeyPress={(e) => e.key === 'Enter' && joinSession()}
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="w-full px-4 py-3 text-center text-2xl font-bold tracking-wider border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-success-500 focus:border-transparent uppercase"
+                    className="w-full px-4 py-3 text-center text-2xl font-bold tracking-wider border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-success-500 focus:border-transparent uppercase bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -950,8 +950,8 @@ Duration: ${formatDuration(sessionDuration)}
                 </button>
               </div>
 
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
                   <strong>Note:</strong> Make sure you have a working camera and are in a well-lit environment for accurate emotion detection.
                 </p>
               </div>

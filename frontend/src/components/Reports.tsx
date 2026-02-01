@@ -122,8 +122,8 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">📊 Reports & Analytics</h1>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">📊 Reports & Analytics</h1>
         
         {/* Report Type Selection */}
         <div className="flex flex-wrap gap-4 mb-6">
@@ -132,7 +132,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
             className={`px-6 py-3 rounded-lg font-medium transition-all ${
               reportType === 'summary'
                 ? 'bg-primary-600 text-white shadow-lg'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
             {userRole === 'teacher' ? '📈 Teaching Summary' : '📚 Learning Summary'}
@@ -143,7 +143,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
             className={`px-6 py-3 rounded-lg font-medium transition-all ${
               reportType === 'session'
                 ? 'bg-primary-600 text-white shadow-lg'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
             📄 Session Report
@@ -155,7 +155,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               className={`px-6 py-3 rounded-lg font-medium transition-all ${
                 reportType === 'admin'
                   ? 'bg-primary-600 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               🌐 System Overview
@@ -167,11 +167,11 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
         {(reportType === 'summary' || reportType === 'admin') && (
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <label className="text-gray-700 font-medium">Period:</label>
+              <label className="text-gray-700 dark:text-gray-300 font-medium">Period:</label>
               <select
                 value={period}
                 onChange={(e) => setPeriod(Number(e.target.value))}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value={7}>Last 7 days</option>
                 <option value={30}>Last 30 days</option>
@@ -217,7 +217,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               value={sessionReportId}
               onChange={(e) => setSessionReportId(e.target.value)}
               placeholder="Enter Session ID or Code"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             />
             <button
               onClick={loadSessionReport}
@@ -259,9 +259,9 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 border border-red-200 rounded-lg p-4"
+          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
         >
-          <p className="text-red-600">{error}</p>
+          <p className="text-red-600 dark:text-red-400">{error}</p>
         </motion.div>
       )}
 
@@ -305,14 +305,14 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               </div>
 
               {/* Sessions by Subject */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">📚 Sessions by Subject</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">📚 Sessions by Subject</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.entries(reportData.sessions_by_subject).map(([subject, data]: [string, any]) => (
-                    <div key={subject} className="border border-gray-200 rounded-lg p-4">
-                      <div className="font-semibold text-gray-900">{subject}</div>
-                      <div className="text-sm text-gray-600">{data.count} sessions</div>
-                      <div className="text-sm text-gray-600">{data.students} students</div>
+                    <div key={subject} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="font-semibold text-gray-900 dark:text-white">{subject}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{data.count} sessions</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{data.students} students</div>
                     </div>
                   ))}
                 </div>
@@ -320,34 +320,34 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
 
               {/* Engagement Distribution */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">🎯 Focus Distribution</h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">🎯 Focus Distribution</h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-green-600 font-medium">High (70%+)</span>
-                      <span className="font-bold">{reportData.focus_distribution?.high ?? 0} students</span>
+                      <span className="font-bold dark:text-white">{reportData.focus_distribution?.high ?? 0} students</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-600 font-medium">Medium (40-70%)</span>
-                      <span className="font-bold">{reportData.focus_distribution?.medium ?? 0} students</span>
+                      <span className="font-bold dark:text-white">{reportData.focus_distribution?.medium ?? 0} students</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-red-600 font-medium">Low (&lt;40%)</span>
-                      <span className="font-bold">{reportData.focus_distribution?.low ?? 0} students</span>
+                      <span className="font-bold dark:text-white">{reportData.focus_distribution?.low ?? 0} students</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">😊 Emotion Distribution</h3>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">😊 Emotion Distribution</h3>
                   <div className="space-y-3">
                     {Object.entries(reportData.emotion_distribution || {}).map(([emotion, count]) => (
                       <div key={emotion} className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 dark:text-gray-300">
                           <span className="text-2xl">{getEmotionIcon(emotion)}</span>
                           <span className="capitalize">{emotion}</span>
                         </span>
-                        <span className="font-bold">{count as number}</span>
+                        <span className="font-bold dark:text-white">{count as number}</span>
                       </div>
                     ))}
                   </div>
@@ -386,13 +386,13 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               </div>
 
               {/* Subjects Performance */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">📚 Performance by Subject</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">📚 Performance by Subject</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.entries(reportData.subjects_attended).map(([subject, data]: [string, any]) => (
-                    <div key={subject} className="border border-gray-200 rounded-lg p-4">
-                      <div className="font-semibold text-gray-900 mb-2">{subject}</div>
-                      <div className="space-y-1 text-sm">
+                    <div key={subject} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="font-semibold text-gray-900 dark:text-white mb-2">{subject}</div>
+                      <div className="space-y-1 text-sm dark:text-gray-400">
                         <div>Sessions: {data.sessions_attended}</div>
                         <div className={getFocusColor(data.avg_focus)}>
                           Avg Focus: {data.avg_focus}%
@@ -408,13 +408,13 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
 
               {/* Recommendations */}
               {reportData.recommendations && reportData.recommendations.length > 0 && (
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">💡 Recommendations</h3>
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">💡 Recommendations</h3>
                   <ul className="space-y-2">
                     {reportData.recommendations.map((rec: string, index: number) => (
                       <li key={index} className="flex items-start gap-2">
                         <span className="text-primary-600 mt-1">•</span>
-                        <span className="text-gray-700">{rec}</span>
+                        <span className="text-gray-700 dark:text-gray-300">{rec}</span>
                       </li>
                     ))}
                   </ul>
@@ -422,27 +422,27 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               )}
 
               {/* Performance History */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">📈 Recent Performance</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">📈 Recent Performance</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Subject</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Focus</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Emotion</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Subject</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Duration</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Focus</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Emotion</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {(reportData.performance_history || []).slice(0, 10).map((perf: any, index: number) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-700">
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                             {new Date(perf.date).toLocaleDateString()}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{perf.subject}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{perf.duration_minutes}m</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{perf.subject}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{perf.duration_minutes}m</td>
                           <td className={`px-4 py-3 text-sm font-medium ${getFocusColor(perf.focus_level)}`}>
                             {perf.focus_level}%
                           </td>
@@ -470,24 +470,24 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               className="space-y-6"
             >
               {/* Session Info */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Session Details</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Session Details</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <div className="text-sm text-gray-600">Session Code</div>
-                    <div className="font-semibold text-lg">{reportData.session_code}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Session Code</div>
+                    <div className="font-semibold text-lg dark:text-white">{reportData.session_code}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Subject</div>
-                    <div className="font-semibold text-lg">{reportData.subject}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Subject</div>
+                    <div className="font-semibold text-lg dark:text-white">{reportData.subject}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Teacher</div>
-                    <div className="font-semibold text-lg">{reportData.teacher_name}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Teacher</div>
+                    <div className="font-semibold text-lg dark:text-white">{reportData.teacher_name}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600">Duration</div>
-                    <div className="font-semibold text-lg">{reportData.duration_minutes} min</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Duration</div>
+                    <div className="font-semibold text-lg dark:text-white">{reportData.duration_minutes} min</div>
                   </div>
                 </div>
               </div>

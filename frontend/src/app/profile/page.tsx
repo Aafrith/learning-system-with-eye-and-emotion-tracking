@@ -170,13 +170,13 @@ function ProfilePage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-300 dark:border-red-800';
       case 'teacher':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 border-blue-300 dark:border-blue-800';
       case 'student':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-300 dark:border-green-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600';
     }
   };
 
@@ -192,7 +192,7 @@ function ProfilePage() {
   return (
     <ProtectedRoute>
       <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -205,7 +205,7 @@ function ProfilePage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
             onClick={() => router.push(`/${user?.role}/dashboard`)}
-            className="mb-6 flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+            className="mb-6 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Back to Dashboard</span>
@@ -213,8 +213,8 @@ function ProfilePage() {
 
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Profile Settings</h1>
-            <p className="text-gray-600">Manage your personal information and preferences</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Profile Settings</h1>
+            <p className="text-gray-600 dark:text-gray-400">Manage your personal information and preferences</p>
           </div>
 
           {/* Message Alert */}
@@ -225,16 +225,16 @@ function ProfilePage() {
               exit={{ opacity: 0, y: -10 }}
               className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
                 message.type === 'success'
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
+                  ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
               }`}
             >
               {message.type === 'success' ? (
-                <Check className="w-5 h-5 text-green-600" />
+                <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-600" />
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               )}
-              <span className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+              <span className={message.type === 'success' ? 'text-green-800 dark:text-green-400' : 'text-red-800 dark:text-red-400'}>
                 {message.text}
               </span>
             </motion.div>
@@ -245,7 +245,7 @@ function ProfilePage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white rounded-2xl shadow-xl overflow-hidden"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
           >
             {/* Cover Image */}
             <div className="h-32 bg-gradient-to-r from-primary-500 to-primary-600"></div>
@@ -262,7 +262,7 @@ function ProfilePage() {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                   >
-                    <div className={`w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-3xl font-bold ${
+                    <div className={`w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-3xl font-bold ${
                       isDragging ? 'ring-4 ring-primary-300' : ''
                     }`}>
                       {avatarPreview ? (
@@ -287,12 +287,12 @@ function ProfilePage() {
 
                   <div className="mb-4 flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h2 className="text-2xl font-bold text-gray-900">{formData.name}</h2>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.name}</h2>
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getRoleBadgeColor(user?.role || '')}`}>
                         {user?.role.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-gray-600">{formData.email}</p>
+                    <p className="text-gray-600 dark:text-gray-400">{formData.email}</p>
                   </div>
 
                   {/* Edit/Save/Cancel Buttons */}
@@ -324,7 +324,7 @@ function ProfilePage() {
                           whileTap={{ scale: 0.95 }}
                           onClick={handleCancel}
                           disabled={isSaving}
-                          className="flex items-center gap-2 px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-6 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X className="w-4 h-4" />
                           Cancel
@@ -357,14 +357,14 @@ function ProfilePage() {
               <div className="space-y-6">
                 {/* Basic Information */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <User className="w-5 h-5 text-primary-600" />
                     Basic Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Name */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Full Name <span className="text-red-500">*</span>
                       </label>
                       {isEditing ? (
@@ -373,17 +373,17 @@ function ProfilePage() {
                           name="name"
                           value={formData.name}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="Enter your full name"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900">{formData.name}</p>
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white">{formData.name}</p>
                       )}
                     </div>
 
                     {/* Email */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Email Address <span className="text-red-500">*</span>
                       </label>
                       {isEditing ? (
@@ -392,11 +392,11 @@ function ProfilePage() {
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="Enter your email"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
                           <Mail className="w-4 h-4 text-gray-400" />
                           {formData.email}
                         </p>
@@ -405,7 +405,7 @@ function ProfilePage() {
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Phone Number
                       </label>
                       {isEditing ? (
@@ -414,11 +414,11 @@ function ProfilePage() {
                           name="phone"
                           value={formData.phone}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="Enter your phone number"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
                           <Phone className="w-4 h-4 text-gray-400" />
                           {formData.phone || 'Not provided'}
                         </p>
@@ -427,7 +427,7 @@ function ProfilePage() {
 
                     {/* Location */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Location
                       </label>
                       {isEditing ? (
@@ -436,11 +436,11 @@ function ProfilePage() {
                           name="location"
                           value={formData.location}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="City, Country"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-400" />
                           {formData.location || 'Not provided'}
                         </p>
@@ -451,14 +451,14 @@ function ProfilePage() {
 
                 {/* Professional Information */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Briefcase className="w-5 h-5 text-primary-600" />
                     Professional Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Title */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Job Title
                       </label>
                       {isEditing ? (
@@ -467,11 +467,11 @@ function ProfilePage() {
                           name="title"
                           value={formData.title}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="e.g., Senior Teacher, Student"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
                           <Briefcase className="w-4 h-4 text-gray-400" />
                           {formData.title || 'Not provided'}
                         </p>
@@ -480,7 +480,7 @@ function ProfilePage() {
 
                     {/* Department */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Department
                       </label>
                       {isEditing ? (
@@ -489,11 +489,11 @@ function ProfilePage() {
                           name="department"
                           value={formData.department}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           placeholder="e.g., Mathematics, Computer Science"
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 flex items-center gap-2">
+                        <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-gray-400" />
                           {formData.department || 'Not provided'}
                         </p>
@@ -504,12 +504,12 @@ function ProfilePage() {
 
                 {/* Bio */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary-600" />
                     About
                   </h3>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Bio
                     </label>
                     {isEditing ? (
@@ -518,11 +518,11 @@ function ProfilePage() {
                         value={formData.bio}
                         onChange={handleInputChange}
                         rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="Tell us about yourself..."
                       />
                     ) : (
-                      <p className="px-4 py-2 bg-gray-50 rounded-lg text-gray-900 min-h-[100px]">
+                      <p className="px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white min-h-[100px]">
                         {formData.bio || 'No bio provided'}
                       </p>
                     )}
@@ -530,18 +530,18 @@ function ProfilePage() {
                 </div>
 
                 {/* Account Information */}
-                <div className="pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">Account Created:</span>
-                      <span className="ml-2 text-gray-900 font-medium">
+                      <span className="text-gray-600 dark:text-gray-400">Account Created:</span>
+                      <span className="ml-2 text-gray-900 dark:text-white font-medium">
                         {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Last Login:</span>
-                      <span className="ml-2 text-gray-900 font-medium">
+                      <span className="text-gray-600 dark:text-gray-400">Last Login:</span>
+                      <span className="ml-2 text-gray-900 dark:text-white font-medium">
                         {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
