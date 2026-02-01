@@ -4,12 +4,12 @@ import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { Bell, Shield, Database, Users, Lock, Eye, Palette, Globe, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/Navbar'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
   const [settings, setSettings] = useState({
     notifications: {
@@ -29,10 +29,11 @@ export default function SettingsPage() {
     },
   })
 
-  if (!user) {
-    router.push('/login')
-    return null
-  }
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, isLoading, router])
 
   const handleToggle = (category: 'notifications' | 'privacy', key: string) => {
     setSettings(prev => ({
@@ -42,6 +43,21 @@ export default function SettingsPage() {
         [key]: !(prev[category] as any)[key],
       },
     }))
+  }
+
+  // Show loading while auth is being checked
+  if (isLoading || !user) {
+    return (
+      <ProtectedRoute>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading settings...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
   }
 
   return (

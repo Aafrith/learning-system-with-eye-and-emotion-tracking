@@ -158,6 +158,22 @@ class NotificationCreate(BaseModel):
     title: str
     message: str
     type: Literal["info", "warning", "error", "success"]
+    category: Optional[Literal["system", "session", "user", "achievement"]] = "system"
+    session_id: Optional[str] = None
+    session_code: Optional[str] = None
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
+
+class BroadcastNotification(BaseModel):
+    title: str
+    message: str
+    type: Literal["info", "warning", "error", "success"] = "info"
+    category: Literal["system", "session", "user", "achievement"] = "session"
+    session_id: Optional[str] = None
+    session_code: Optional[str] = None
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
+    target_role: Literal["student", "teacher", "all"] = "student"
 
 class NotificationInDB(NotificationCreate):
     id: str = Field(alias="_id")
@@ -168,8 +184,23 @@ class NotificationInDB(NotificationCreate):
         populate_by_name = True
         json_encoders = {ObjectId: str}
 
-class NotificationResponse(NotificationInDB):
-    pass
+class NotificationResponse(BaseModel):
+    id: str = Field(alias="_id")
+    user_id: str
+    title: str
+    message: str
+    type: str
+    category: Optional[str] = "system"
+    session_id: Optional[str] = None
+    session_code: Optional[str] = None
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
+    created_at: datetime
+    read: bool = False
+    
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
 
 # Token Models
 class Token(BaseModel):

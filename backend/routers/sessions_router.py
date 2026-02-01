@@ -12,6 +12,11 @@ from bson import ObjectId
 
 router = APIRouter(prefix="/api/sessions", tags=["Sessions"])
 
+# Import manager for WebSocket notifications (lazy import to avoid circular deps)
+def get_websocket_manager():
+    from routers.websocket_router import manager
+    return manager
+
 # Teacher Session Management
 @router.post("/create", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
@@ -140,6 +145,96 @@ async def end_session(
     
     return SessionResponse(**updated_session)
 
+@router.delete("/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: UserInDB = Depends(get_current_teacher)
+):
+    """Delete a session (Teacher only)"""
+    db = await get_database()
+    
+    # Find session
+    session = await db.sessions.find_one({"_id": session_id})
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Verify teacher owns the session
+    if session["teacher_id"] != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this session"
+        )
+    
+    # Don't allow deleting active sessions
+    if session.get("is_active", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete an active session. End the session first."
+        )
+    
+    # Delete the session
+    await db.sessions.delete_one({"_id": session_id})
+    
+    # Also delete associated engagement data
+    await db.engagement_data.delete_many({"session_id": session_id})
+    
+    print(f"🗑️ Session {session_id} deleted by teacher {current_user.id}")
+    
+    return {"message": "Session deleted successfully", "session_id": session_id}
+
+@router.post("/{session_id}/restart", response_model=SessionResponse)
+async def restart_session(
+    session_id: str,
+    current_user: UserInDB = Depends(get_current_teacher)
+):
+    """Restart a past session with the same ID (Teacher only)"""
+    db = await get_database()
+    
+    # Find session
+    session = await db.sessions.find_one({"_id": session_id})
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Verify teacher owns the session
+    if session["teacher_id"] != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to restart this session"
+        )
+    
+    # Check if session is already active
+    if session.get("is_active", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Session is already active"
+        )
+    
+    # Restart the session - clear students and reactivate
+    await db.sessions.update_one(
+        {"_id": session_id},
+        {
+            "$set": {
+                "is_active": True,
+                "students": [],  # Clear previous students
+                "started_at": datetime.utcnow(),
+                "ended_at": None
+            }
+        }
+    )
+    
+    # Get updated session
+    updated_session = await db.sessions.find_one({"_id": session_id})
+    
+    print(f"🔄 Session {session_id} restarted by teacher {current_user.id}")
+    
+    return SessionResponse(**updated_session)
+
 @router.get("/teacher", response_model=List[SessionResponse])
 async def get_teacher_sessions(
     current_user: UserInDB = Depends(get_current_teacher)
@@ -237,19 +332,48 @@ async def leave_session(
     """Leave a session (Student only)"""
     db = await get_database()
     
-    # Remove student from session
+    # Check if session exists
+    session = await db.sessions.find_one({"_id": session_id})
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Get student info before removing (for notification)
+    student_info = next((s for s in session.get("students", []) if s["id"] == current_user.id), None)
+    student_name = student_info.get("name", current_user.name) if student_info else current_user.name
+    
+    # Remove student from session (may already be removed by WebSocket disconnect)
     result = await db.sessions.update_one(
         {"_id": session_id},
         {"$pull": {"students": {"id": current_user.id}}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found or student not in session"
-        )
+    # Send WebSocket notification to teacher about student leaving
+    try:
+        ws_manager = get_websocket_manager()
+        await ws_manager.send_to_teacher(session_id, {
+            "type": "student_leave",
+            "data": {
+                "student_id": current_user.id,
+                "student_name": student_name,
+                "timestamp": datetime.utcnow().isoformat(),
+                "source": "api"  # Indicates this came from the leave API
+            }
+        })
+        print(f"📨 Sent student_leave notification via API for {student_name}")
+    except Exception as e:
+        print(f"⚠️ Failed to send WebSocket notification: {e}")
     
-    return {"message": "Left session successfully"}
+    # Return success even if student was already removed (by WebSocket handler)
+    # This prevents errors when WebSocket disconnect races with API call
+    if result.modified_count == 0:
+        print(f"Student {current_user.id} was already removed from session {session_id}")
+    else:
+        print(f"Student {current_user.id} ({student_name}) removed from session {session_id} via API")
+    
+    return {"message": "Left session successfully", "student_id": current_user.id}
 
 @router.get("/student", response_model=List[SessionResponse])
 async def get_student_sessions(

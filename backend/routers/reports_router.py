@@ -29,8 +29,8 @@ def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
     focus_distribution = {"high": 0, "medium": 0, "low": 0}
     
     for student in students_data:
-        # Focus level
-        focus = student.get("focus_level", 0)
+        # Focus level - handle None values
+        focus = student.get("focus_level") or 0
         total_focus += focus
         
         if focus >= 70:
@@ -40,12 +40,12 @@ def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
         else:
             focus_distribution["low"] += 1
         
-        # Emotion
-        emotion = student.get("emotion", "neutral")
+        # Emotion - handle None values
+        emotion = student.get("emotion") or "neutral"
         emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
         
-        # Engagement
-        engagement = student.get("engagement", "passive")
+        # Engagement - handle None values
+        engagement = student.get("engagement") or "passive"
         if engagement in engagement_counts:
             engagement_counts[engagement] += 1
     
@@ -92,8 +92,78 @@ async def get_session_report(
                 detail="Not authorized to view this session report"
             )
     
-    # Calculate statistics
-    stats = calculate_engagement_stats(session.get("students", []))
+    # Get aggregated engagement data for each student from engagement_data collection
+    students_with_analytics = []
+    for student in session.get("students", []):
+        student_id = student["id"]
+        
+        # Fetch all engagement records for this student in this session
+        engagement_records = await db.engagement_data.find({
+            "session_id": session_id,
+            "student_id": student_id
+        }).to_list(None)
+        
+        if engagement_records and len(engagement_records) > 0:
+            # Calculate averages from actual data
+            total_focus = 0
+            emotion_counts = {}
+            engagement_counts = {"active": 0, "passive": 0, "distracted": 0}
+            valid_focus_count = 0
+            
+            for record in engagement_records:
+                # Focus level
+                focus = record.get("focus_level")
+                if focus is not None:
+                    total_focus += focus
+                    valid_focus_count += 1
+                
+                # Emotion counts
+                emotion = record.get("emotion") or "neutral"
+                emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+                
+                # Engagement counts
+                engagement = record.get("engagement") or "passive"
+                if engagement in engagement_counts:
+                    engagement_counts[engagement] += 1
+            
+            # Calculate averages
+            avg_focus = round(total_focus / valid_focus_count, 1) if valid_focus_count > 0 else 0
+            
+            # Find dominant emotion
+            dominant_emotion = max(emotion_counts, key=emotion_counts.get) if emotion_counts else "neutral"
+            
+            # Find dominant engagement
+            dominant_engagement = max(engagement_counts, key=engagement_counts.get) if any(engagement_counts.values()) else "passive"
+            
+            students_with_analytics.append({
+                "id": student_id,
+                "name": student["name"],
+                "email": student.get("email"),
+                "joined_at": student["joined_at"].isoformat() if hasattr(student["joined_at"], 'isoformat') else str(student["joined_at"]),
+                "emotion": dominant_emotion,
+                "engagement": dominant_engagement,
+                "focus_level": avg_focus,
+                "data_points": len(engagement_records),
+                "emotion_distribution": emotion_counts,
+                "engagement_distribution": engagement_counts
+            })
+        else:
+            # No engagement data - use values from session (last known values)
+            students_with_analytics.append({
+                "id": student_id,
+                "name": student["name"],
+                "email": student.get("email"),
+                "joined_at": student["joined_at"].isoformat() if hasattr(student["joined_at"], 'isoformat') else str(student["joined_at"]),
+                "emotion": student.get("emotion") or "neutral",
+                "engagement": student.get("engagement") or "passive",
+                "focus_level": student.get("focus_level") or 0,
+                "data_points": 0,
+                "emotion_distribution": {},
+                "engagement_distribution": {}
+            })
+    
+    # Calculate overall statistics from aggregated data
+    stats = calculate_engagement_stats(students_with_analytics)
     
     # Calculate session duration
     duration_minutes = 0
@@ -114,18 +184,7 @@ async def get_session_report(
         "duration_minutes": duration_minutes,
         "is_active": session["is_active"],
         "statistics": stats,
-        "students": [
-            {
-                "id": s["id"],
-                "name": s["name"],
-                "email": s.get("email"),
-                "joined_at": s["joined_at"].isoformat(),
-                "emotion": s.get("emotion", "neutral"),
-                "engagement": s.get("engagement", "passive"),
-                "focus_level": s.get("focus_level", 0)
-            }
-            for s in session.get("students", [])
-        ]
+        "students": students_with_analytics
     }
     
     return report
@@ -254,16 +313,20 @@ async def get_student_summary(
             duration = duration_delta.total_seconds() / 60
             total_duration += duration
         
-        # Track performance
+        # Track performance - handle None values
+        focus_level = student_data.get("focus_level") or 0
+        engagement = student_data.get("engagement") or "passive"
+        emotion = student_data.get("emotion") or "neutral"
+        
         student_performance.append({
             "session_id": session["_id"],
             "session_code": session["session_code"],
             "subject": session["subject"],
             "date": session.get("started_at", session["created_at"]).isoformat(),
             "duration_minutes": round(duration, 1),
-            "focus_level": student_data.get("focus_level", 0),
-            "engagement": student_data.get("engagement", "passive"),
-            "emotion": student_data.get("emotion", "neutral")
+            "focus_level": focus_level,
+            "engagement": engagement,
+            "emotion": emotion
         })
         
         # Group by subject
@@ -275,9 +338,8 @@ async def get_student_summary(
                 "emotions": {}
             }
         subjects[subject]["count"] += 1
-        subjects[subject]["total_focus"] += student_data.get("focus_level", 0)
+        subjects[subject]["total_focus"] += focus_level
         
-        emotion = student_data.get("emotion", "neutral")
         subjects[subject]["emotions"][emotion] = subjects[subject]["emotions"].get(emotion, 0) + 1
     
     # Calculate averages

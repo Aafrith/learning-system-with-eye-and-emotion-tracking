@@ -20,10 +20,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser)
-        // Validate that the user object has required fields
-        if (parsedUser && parsedUser._id && parsedUser.email && parsedUser.name && parsedUser.role) {
+        // Validate that the user object has required fields (accept both _id and id)
+        const userId = parsedUser._id || parsedUser.id
+        if (parsedUser && userId && parsedUser.email && parsedUser.name && parsedUser.role) {
           setUser({
-            id: parsedUser._id,
+            id: userId,
             email: parsedUser.email,
             name: parsedUser.name,
             role: parsedUser.role,
@@ -33,12 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             bio: parsedUser.bio,
             title: parsedUser.title,
             department: parsedUser.department,
-            createdAt: new Date(parsedUser.created_at || parsedUser.createdAt),
+            createdAt: new Date(parsedUser.created_at || parsedUser.createdAt || Date.now()),
             lastLogin: parsedUser.last_login ? new Date(parsedUser.last_login) : undefined,
           })
         } else {
           // Invalid user data, clear it
-          console.error('Invalid user data in localStorage')
+          console.error('Invalid user data in localStorage - missing required fields')
           localStorage.removeItem('user')
           localStorage.removeItem('access_token')
         }

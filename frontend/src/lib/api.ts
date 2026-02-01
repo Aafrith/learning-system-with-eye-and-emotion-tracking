@@ -10,6 +10,18 @@ const getAuthToken = (): string | null => {
 // Helper function to handle API errors
 const handleApiError = async (response: Response) => {
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      // Clear stored auth data
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('user')
+      
+      // Redirect to login page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login?expired=true'
+      }
+    }
+    
     const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
     throw new Error(error.detail || error.message || 'API request failed')
   }
@@ -254,6 +266,32 @@ export const sessionApi = {
       }),
     })
     return handleApiError(response)
+  },
+
+  async deleteSession(sessionId: string) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async restartSession(sessionId: string) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/restart`, {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
   }
 }
 
@@ -421,6 +459,57 @@ export const notificationApi = {
     if (!token) throw new Error('No authentication token')
 
     const response = await fetch(`${API_BASE_URL}/api/notifications/unread-count`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async deleteNotification(notificationId: string) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    return handleApiError(response)
+  },
+
+  async broadcastNotification(data: {
+    title: string
+    message: string
+    type?: 'info' | 'warning' | 'error' | 'success'
+    category?: 'system' | 'session' | 'user' | 'achievement'
+    session_id?: string
+    session_code?: string
+    action_url?: string
+    action_label?: string
+    target_role?: 'student' | 'teacher' | 'all'
+  }) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/broadcast`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+    return handleApiError(response)
+  },
+
+  async notifySessionStarted(sessionId: string) {
+    const token = getAuthToken()
+    if (!token) throw new Error('No authentication token')
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/session/${sessionId}/notify`, {
+      method: 'POST',
       headers: { 
         'Authorization': `Bearer ${token}`,
       },

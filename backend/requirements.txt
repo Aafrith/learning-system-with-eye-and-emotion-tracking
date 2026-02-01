@@ -24,3 +24,4 @@ agora-token-builder==1.0.0
 
 # PDF Generation
 reportlab==4.0.9
+certifi==2024.8.30

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { LogIn, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -12,6 +13,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const { login, isLoading } = useAuth()
+  const searchParams = useSearchParams()
+
+  // Show message if redirected due to expired token
+  useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      setError('Your session has expired. Please login again.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,16 +58,6 @@ export default function LoginPage() {
           <p className="text-center text-gray-600 mb-8">
             Sign in to your account to continue
           </p>
-
-          {/* Demo Credentials */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-sm font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-xs text-blue-800">
-              <p><strong>Admin:</strong> admin@example.com / admin123</p>
-              <p><strong>Teacher:</strong> teacher@example.com / teacher123</p>
-              <p><strong>Student:</strong> student@example.com / student123</p>
-            </div>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (

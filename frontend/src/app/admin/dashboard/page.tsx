@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import Navbar from '@/components/Navbar'
@@ -22,9 +22,11 @@ import {
   Trash2,
   Shield,
   Download,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { adminApi } from '@/lib/api'
 
 interface UserData {
   id: string
@@ -48,61 +50,96 @@ interface SystemStats {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterRole, setFilterRole] = useState<'all' | 'teacher' | 'student' | 'admin'>('all')
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data - replace with actual API calls
   const [stats, setStats] = useState<SystemStats>({
-    totalUsers: 156,
-    activeUsers: 142,
-    totalSessions: 1234,
-    avgEngagement: 78,
-    teachersCount: 23,
-    studentsCount: 130,
-    adminsCount: 3,
+    totalUsers: 0,
+    activeUsers: 0,
+    totalSessions: 0,
+    avgEngagement: 0,
+    teachersCount: 0,
+    studentsCount: 0,
+    adminsCount: 0,
   })
 
-  const [users, setUsers] = useState<UserData[]>([
-    {
-      id: '1',
-      name: 'John Teacher',
-      email: 'teacher@example.com',
-      role: 'teacher',
-      status: 'active',
-      lastLogin: new Date('2024-11-25'),
-      sessionsCount: 45,
-      createdAt: new Date('2024-01-15'),
-    },
-    {
-      id: '2',
-      name: 'Jane Student',
-      email: 'student@example.com',
-      role: 'student',
-      status: 'active',
-      lastLogin: new Date('2024-11-24'),
-      sessionsCount: 32,
-      createdAt: new Date('2024-02-10'),
-    },
-    {
-      id: '3',
-      name: 'Admin User',
-      email: 'admin@example.com',
-      role: 'admin',
-      status: 'active',
-      lastLogin: new Date('2024-11-25'),
-      sessionsCount: 120,
-      createdAt: new Date('2024-01-01'),
-    },
-  ])
+  const [users, setUsers] = useState<UserData[]>([])
+
+  // Fetch data from API
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // Fetch system stats
+      const statsData = await adminApi.getSystemStats()
+      setStats({
+        totalUsers: statsData.total_users || 0,
+        activeUsers: statsData.total_users || 0, // Assume all users are active
+        totalSessions: statsData.total_sessions || 0,
+        avgEngagement: 75, // Default value
+        teachersCount: statsData.total_teachers || 0,
+        studentsCount: statsData.total_students || 0,
+        adminsCount: statsData.total_admins || 0,
+      })
+
+      // Fetch all users
+      const usersData = await adminApi.getAllUsers(0, 100)
+      const formattedUsers = usersData.map((u: any) => ({
+        id: u._id || u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: 'active' as const,
+        lastLogin: new Date(u.last_login || u.created_at),
+        sessionsCount: 0,
+        createdAt: new Date(u.created_at),
+      }))
+      setUsers(formattedUsers)
+
+    } catch (err: any) {
+      console.error('Failed to fetch admin data:', err)
+      setError(err.message || 'Failed to load dashboard data')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      router.push('/login')
+    if (user && user.role === 'admin') {
+      fetchData()
     }
-  }, [user, router])
+  }, [user, fetchData])
+
+  useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (!authLoading) {
+      if (!user || user.role !== 'admin') {
+        router.push('/login')
+      }
+    }
+  }, [user, authLoading, router])
+
+  // Show loading while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user || user.role !== 'admin') {
+    return null
+  }
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,9 +148,14 @@ export default function AdminDashboard() {
     return matchesSearch && matchesRole
   })
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== userId))
+      try {
+        await adminApi.deleteUser(userId)
+        setUsers(users.filter(u => u.id !== userId))
+      } catch (err: any) {
+        setError('Failed to delete user: ' + (err.message || 'Unknown error'))
+      }
     }
   }
 
@@ -158,6 +200,20 @@ export default function AdminDashboard() {
 
   if (!user || user.role !== 'admin') {
     return null
+  }
+
+  if (isLoading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading admin dashboard...</p>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (
@@ -264,13 +320,17 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-600 mt-1">Manage all system users</p>
               </div>
               <div className="flex space-x-3">
-                <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2">
-                  <Download className="w-4 h-4" />
-                  <span>Export</span>
+                <button 
+                  onClick={fetchData}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
                 </button>
                 <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2">
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Refresh</span>
+                  <Download className="w-4 h-4" />
+                  <span>Export</span>
                 </button>
               </div>
             </div>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Reports from '@/components/Reports'
+import Navbar from '@/components/Navbar'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function TeacherReportsPage() {
   const router = useRouter()
@@ -38,8 +40,11 @@ export default function TeacherReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Reports userRole="teacher" />
-    </div>
+    <ProtectedRoute>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
+        <Reports userRole="teacher" />
+      </div>
+    </ProtectedRoute>
   )
 }

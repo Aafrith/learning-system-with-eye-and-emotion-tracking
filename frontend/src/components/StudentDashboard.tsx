@@ -23,6 +23,8 @@ import FocusAlert from './FocusAlert'
 import Notepad from './Notepad'
 import { agoraConfig, validateAgoraConfig } from '@/lib/agoraConfig'
 
+import { WebSocketManager, ConnectionState } from '@/lib/websocket'
+
 // Dynamically import Agora component to avoid SSR issues
 const InteractiveLiveStreaming = dynamic(
   () => import('./InteractiveLiveStreaming'),
@@ -66,6 +68,10 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const [isWatchingStream, setIsWatchingStream] = useState(false)
   const [agoraConfigValid, setAgoraConfigValid] = useState(false)
   const [emotionWebSocket, setEmotionWebSocket] = useState<WebSocket | null>(null)
+  const [wsManager, setWsManager] = useState<WebSocketManager | null>(null)
+  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
+  const [isLeavingSession, setIsLeavingSession] = useState(false) // Track intentional leave
+  const [reconnectAttempt, setReconnectAttempt] = useState<{current: number, max: number} | null>(null)
   const [stats, setStats] = useState<StudentStats>({
     currentEmotion: '',
     engagement: 'active',
@@ -128,81 +134,106 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
       return
     }
 
-    // Correct WebSocket URL format: /ws/session/{session_id}/student/{student_id}
     // Clean WebSocket URL to avoid double slashes
     const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000').replace(/\/+$/, '')
-    const ws = new WebSocket(`${wsUrl}/ws/session/${currentSession.id}/student/${studentId}`)
     
-    // Ping interval to keep connection alive
-    let pingInterval: NodeJS.Timeout
+    // Create WebSocket manager with improved reconnection
+    const manager = new WebSocketManager(
+      `${wsUrl}/ws/session/${currentSession.id}/student/${studentId}`,
+      {
+        onStateChange: (state) => {
+          setConnectionState(state)
+          console.log(`Connection state changed: ${state}`)
+        },
+        onReconnectAttempt: (attempt, max) => {
+          setReconnectAttempt({ current: attempt, max })
+          console.log(`Reconnection attempt ${attempt}/${max}`)
+        },
+        onMaxReconnectReached: () => {
+          setReconnectAttempt(null)
+          // Show user-friendly message instead of reloading
+          alert('Connection lost. Please check your internet connection and rejoin the session.')
+        }
+      }
+    )
 
-    ws.onopen = () => {
+    // Set up event listeners
+    manager.on('emotion_result', (data: any) => {
+      console.log('Emotion result:', data)
+      handleEmotionData(data)
+    })
+
+    manager.on('pong', () => {
+      console.log('Pong received - connection alive')
+    })
+
+    manager.on('focus_alert', () => {
+      setShowFocusAlert(true)
+      setTimeout(() => setShowFocusAlert(false), 5000)
+    })
+
+    manager.on('session_ended', () => {
+      console.log('Session ended by teacher')
+      alert('The teacher has ended the session.')
+      handleLeaveSession()
+    })
+
+    manager.on('connected', (data: any) => {
+      console.log('WebSocket connected:', data?.message || 'Connected')
+    })
+
+    manager.on('error', (data: any) => {
+      console.error('WebSocket error from server:', data?.message)
+    })
+
+    // Connect
+    manager.connect().then(() => {
       console.log('Connected to session WebSocket')
       console.log(`Session ID: ${currentSession.id}, Student: ${studentName}`)
-      
-      // Send ping every 30 seconds to keep connection alive
-      pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }))
+    }).catch((error) => {
+      console.error('Failed to connect WebSocket:', error)
+    })
+
+    setWsManager(manager)
+    
+    // Create a proxy WebSocket-like object for VideoFeed compatibility
+    // This allows the VideoFeed component to send frames through our manager
+    const wsProxy = {
+      send: (data: string) => {
+        try {
+          const parsed = JSON.parse(data)
+          manager.send(parsed)
+        } catch {
+          manager.send({ type: 'raw', data })
         }
-      }, 30000)
-    }
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        console.log('WebSocket message received:', data.type)
-        
-        if (data.type === 'emotion_result') {
-          // Handle emotion detection results from backend
-          console.log('Emotion result:', data.data)
-          handleEmotionData(data.data)
-        } else if (data.type === 'pong') {
-          // Received pong response
-          console.log('Pong received - connection alive')
-        } else if (data.type === 'focus_alert') {
-          setShowFocusAlert(true)
-          setTimeout(() => setShowFocusAlert(false), 5000)
-        } else if (data.type === 'session_ended') {
-          console.log('Session ended by teacher')
-          alert('The teacher has ended the session.')
-          handleLeaveSession()
-        } else if (data.type === 'connected') {
-          console.log('WebSocket connected:', data.message)
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+      },
+      close: () => manager.disconnect(),
+      // Dynamic readyState based on manager connection
+      get readyState() {
+        return manager.isConnected() ? WebSocket.OPEN : WebSocket.CLOSED
+      },
+      get OPEN() { return WebSocket.OPEN },
+      get CLOSED() { return WebSocket.CLOSED },
+      get CONNECTING() { return WebSocket.CONNECTING },
+      get CLOSING() { return WebSocket.CLOSING },
+      // Event listener stubs (VideoFeed adds these but we handle events via manager)
+      addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+        // Events are handled by the manager, this is just for compatibility
+        console.log(`VideoFeed added event listener for: ${type}`)
+      },
+      removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+        console.log(`VideoFeed removed event listener for: ${type}`)
       }
-    }
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
-    }
-
-    ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason)
-      clearInterval(pingInterval)
-      
-      // Auto-reconnect after 3 seconds if session is still active
-      if (isInSession && currentSession) {
-        console.log('Attempting to reconnect in 3 seconds...')
-        setTimeout(() => {
-          if (isInSession && currentSession) {
-            window.location.reload() // Simple reconnect by reloading
-          }
-        }, 3000)
-      }
-    }
-
-    // Set emotion WebSocket for VideoFeed component
-    setEmotionWebSocket(ws)
+    } as unknown as WebSocket
+    
+    setEmotionWebSocket(wsProxy)
 
     return () => {
-      clearInterval(pingInterval)
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close()
-      }
+      manager.disconnect()
+      setWsManager(null)
       setEmotionWebSocket(null)
+      setConnectionState('disconnected')
+      setReconnectAttempt(null)
     }
   }, [isInSession, currentSession])
 
@@ -278,16 +309,20 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const handleLeaveSession = async () => {
     if (!currentSession) return
 
-    // Close WebSocket first
-    if (emotionWebSocket) {
-      emotionWebSocket.close()
-    }
+    // Mark that user is intentionally leaving to prevent auto-reconnect
+    setIsLeavingSession(true)
 
     if (useMockData) {
-      // Mock mode
+      // Mock mode - close WebSocket first
+      if (wsManager) {
+        wsManager.disconnect()
+        setWsManager(null)
+      }
+      setEmotionWebSocket(null)
       setIsInSession(false)
       setCurrentSession(null)
       setSessionDuration(0)
+      setIsLeavingSession(false)
       setStats({
         currentEmotion: '',
         engagement: 'active',
@@ -298,17 +333,35 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
       return
     }
 
-    // Real mode
+    // Real mode - Call API FIRST to remove student from database
+    // This ensures the teacher gets the correct count
     try {
       const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      await fetch(`${apiUrl}/api/sessions/${currentSession.id}/leave`, {
+      const token = localStorage.getItem('access_token')
+      
+      const response = await fetch(`${apiUrl}/api/sessions/${currentSession.id}/leave`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_name: studentName })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       })
+      
+      if (!response.ok) {
+        console.error('Leave session API error:', await response.text())
+      } else {
+        console.log('Successfully left session via API')
+      }
     } catch (error) {
       console.error('Error leaving session:', error)
     }
+
+    // THEN close WebSocket (this will notify teacher via WebSocket)
+    if (wsManager) {
+      wsManager.disconnect()
+      setWsManager(null)
+    }
+    setEmotionWebSocket(null)
 
     // Auto-save notes if any exist
     if (notes.trim()) {
@@ -321,6 +374,7 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
     setIsInSession(false)
     setCurrentSession(null)
     setSessionDuration(0)
+    setIsLeavingSession(false)
     setStats({
       currentEmotion: '',
       engagement: 'active',
@@ -566,8 +620,30 @@ Duration: ${formatDuration(sessionDuration)}
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-success-600 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-success-600">Active Session</span>
+                    {/* Connection Status Indicator */}
+                    {connectionState === 'connected' ? (
+                      <>
+                        <div className="w-3 h-3 bg-success-600 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium text-success-600">Connected</span>
+                      </>
+                    ) : connectionState === 'reconnecting' ? (
+                      <>
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium text-yellow-600">
+                          Reconnecting{reconnectAttempt ? ` (${reconnectAttempt.current}/${reconnectAttempt.max})` : '...'}
+                        </span>
+                      </>
+                    ) : connectionState === 'connecting' ? (
+                      <>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium text-blue-600">Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-red-600">Disconnected</span>
+                      </>
+                    )}
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900">{currentSession.subject}</h2>
                   <p className="text-gray-600">Teacher: {currentSession.teacherName}</p>

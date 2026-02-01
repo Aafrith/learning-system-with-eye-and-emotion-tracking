@@ -61,7 +61,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
     }
   }
 
-  const loadAdminReport = async () {
+  const loadAdminReport = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -325,15 +325,15 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-green-600 font-medium">High (70%+)</span>
-                      <span className="font-bold">{reportData.focus_distribution.high} students</span>
+                      <span className="font-bold">{reportData.focus_distribution?.high ?? 0} students</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-600 font-medium">Medium (40-70%)</span>
-                      <span className="font-bold">{reportData.focus_distribution.medium} students</span>
+                      <span className="font-bold">{reportData.focus_distribution?.medium ?? 0} students</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-red-600 font-medium">Low (&lt;40%)</span>
-                      <span className="font-bold">{reportData.focus_distribution.low} students</span>
+                      <span className="font-bold">{reportData.focus_distribution?.low ?? 0} students</span>
                     </div>
                   </div>
                 </div>
@@ -341,7 +341,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-4">😊 Emotion Distribution</h3>
                   <div className="space-y-3">
-                    {Object.entries(reportData.emotion_distribution).map(([emotion, count]) => (
+                    {Object.entries(reportData.emotion_distribution || {}).map(([emotion, count]) => (
                       <div key={emotion} className="flex items-center justify-between">
                         <span className="flex items-center gap-2">
                           <span className="text-2xl">{getEmotionIcon(emotion)}</span>
@@ -436,7 +436,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {reportData.performance_history.slice(0, 10).map((perf: any, index: number) => (
+                      {(reportData.performance_history || []).slice(0, 10).map((perf: any, index: number) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-700">
                             {new Date(perf.date).toLocaleDateString()}
@@ -495,15 +495,15 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               {/* Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.statistics.total_students}</div>
+                  <div className="text-3xl font-bold">{reportData.statistics?.total_students ?? reportData.students?.length ?? 0}</div>
                   <div className="text-blue-100">Students</div>
                 </div>
                 <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.statistics.avg_focus}%</div>
+                  <div className="text-3xl font-bold">{reportData.statistics?.avg_focus ?? 0}%</div>
                   <div className="text-green-100">Avg Focus</div>
                 </div>
                 <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.statistics.avg_engagement}%</div>
+                  <div className="text-3xl font-bold">{reportData.statistics?.avg_engagement ?? 0}%</div>
                   <div className="text-purple-100">Active Engagement</div>
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {reportData.students.map((student: any) => (
+                      {(reportData.students || []).map((student: any) => (
                         <tr key={student.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">{student.name}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">
@@ -567,15 +567,15 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
               {/* System Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.system_stats.total_teachers}</div>
+                  <div className="text-3xl font-bold">{reportData.system_stats?.total_teachers ?? 0}</div>
                   <div className="text-blue-100">Teachers</div>
                 </div>
                 <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.system_stats.total_students}</div>
+                  <div className="text-3xl font-bold">{reportData.system_stats?.total_students ?? 0}</div>
                   <div className="text-green-100">Students</div>
                 </div>
                 <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-                  <div className="text-3xl font-bold">{reportData.system_stats.total_sessions}</div>
+                  <div className="text-3xl font-bold">{reportData.system_stats?.total_sessions ?? 0}</div>
                   <div className="text-purple-100">Total Sessions</div>
                 </div>
               </div>
@@ -585,19 +585,19 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                 <h3 className="text-xl font-bold text-gray-900 mb-4">📊 Usage Statistics</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary-600">{reportData.system_stats.active_sessions}</div>
+                    <div className="text-2xl font-bold text-primary-600">{reportData.system_stats?.active_sessions ?? 0}</div>
                     <div className="text-sm text-gray-600">Active Sessions</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-700">{reportData.system_stats.completed_sessions}</div>
+                    <div className="text-2xl font-bold text-gray-700">{reportData.system_stats?.completed_sessions ?? 0}</div>
                     <div className="text-sm text-gray-600">Completed</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-700">{Math.round(reportData.usage_stats.total_duration_minutes)}m</div>
+                    <div className="text-2xl font-bold text-gray-700">{Math.round(reportData.usage_stats?.total_duration_minutes ?? 0)}m</div>
                     <div className="text-sm text-gray-600">Total Duration</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-700">{reportData.usage_stats.total_participants}</div>
+                    <div className="text-2xl font-bold text-gray-700">{reportData.usage_stats?.total_participants ?? 0}</div>
                     <div className="text-sm text-gray-600">Participants</div>
                   </div>
                 </div>
@@ -609,28 +609,28 @@ export default function Reports({ userRole, sessionId }: ReportsProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <div className="text-center mb-4">
-                      <div className="text-4xl font-bold text-primary-600">{reportData.engagement_stats.avg_focus_level}%</div>
+                      <div className="text-4xl font-bold text-primary-600">{reportData.engagement_stats?.avg_focus_level ?? 0}%</div>
                       <div className="text-gray-600">Average Focus Level</div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-green-600">High</span>
-                        <span className="font-bold">{reportData.engagement_stats.focus_distribution.high}</span>
+                        <span className="font-bold">{reportData.engagement_stats?.focus_distribution?.high ?? 0}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-yellow-600">Medium</span>
-                        <span className="font-bold">{reportData.engagement_stats.focus_distribution.medium}</span>
+                        <span className="font-bold">{reportData.engagement_stats?.focus_distribution?.medium ?? 0}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-red-600">Low</span>
-                        <span className="font-bold">{reportData.engagement_stats.focus_distribution.low}</span>
+                        <span className="font-bold">{reportData.engagement_stats?.focus_distribution?.low ?? 0}</span>
                       </div>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Emotion Distribution</h4>
                     <div className="space-y-2">
-                      {Object.entries(reportData.engagement_stats.emotion_distribution).map(([emotion, count]) => (
+                      {Object.entries(reportData.engagement_stats?.emotion_distribution || {}).map(([emotion, count]) => (
                         <div key={emotion} className="flex justify-between items-center">
                           <span className="flex items-center gap-2">
                             <span className="text-xl">{getEmotionIcon(emotion)}</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Navbar from '@/components/Navbar';
@@ -20,9 +20,11 @@ import {
   Calendar,
   BookOpen,
   Users,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  RefreshCw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { notificationApi } from '@/lib/api';
 
 interface Notification {
   id: string;
@@ -32,6 +34,8 @@ interface Notification {
   timestamp: Date;
   read: boolean;
   category: 'system' | 'session' | 'user' | 'achievement';
+  sessionCode?: string;
+  sessionId?: string;
   action?: {
     label: string;
     url: string;
@@ -43,117 +47,79 @@ function NotificationsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'system' | 'session' | 'user' | 'achievement'>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock notifications based on user role
-  const getMockNotifications = (): Notification[] => {
+  // Convert API notification to our interface
+  const convertNotification = (apiNotif: any): Notification => {
+    // Use category from API if available, otherwise determine from content
+    let category: 'system' | 'session' | 'user' | 'achievement' = apiNotif.category || 'system';
+    
+    if (!apiNotif.category) {
+      const titleLower = (apiNotif.title || '').toLowerCase();
+      const messageLower = (apiNotif.message || '').toLowerCase();
+      
+      if (titleLower.includes('session') || messageLower.includes('session') || messageLower.includes('code:')) {
+        category = 'session';
+      } else if (titleLower.includes('profile') || titleLower.includes('user') || messageLower.includes('profile')) {
+        category = 'user';
+      } else if (titleLower.includes('achievement') || titleLower.includes('badge')) {
+        category = 'achievement';
+      }
+    }
+    
+    // Build action from API data
+    let action = undefined;
+    if (apiNotif.action_url && apiNotif.action_label) {
+      action = {
+        label: apiNotif.action_label,
+        url: apiNotif.action_url
+      };
+    }
+    
+    return {
+      id: apiNotif._id || apiNotif.id,
+      type: apiNotif.type || 'info',
+      title: apiNotif.title,
+      message: apiNotif.message,
+      timestamp: new Date(apiNotif.created_at || Date.now()),
+      read: apiNotif.read || false,
+      category: category,
+      sessionCode: apiNotif.session_code,
+      sessionId: apiNotif.session_id,
+      action: action,
+    };
+  };
+
+  // Get default notifications based on role when no API notifications exist
+  const getDefaultNotifications = (): Notification[] => {
     const baseNotifications: Notification[] = [
       {
-        id: '1',
-        type: 'success',
-        title: 'Profile Updated Successfully',
-        message: 'Your profile information has been updated.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        read: false,
-        category: 'user',
-      },
-      {
-        id: '2',
+        id: 'welcome-1',
         type: 'info',
-        title: 'System Maintenance Scheduled',
-        message: 'System maintenance is scheduled for tonight at 2:00 AM.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        read: true,
+        title: 'Welcome to Learning Analytics',
+        message: 'Start by exploring your dashboard and joining or creating sessions.',
+        timestamp: new Date(),
+        read: false,
         category: 'system',
       },
     ];
-
-    if (user?.role === 'admin') {
-      return [
-        ...baseNotifications,
-        {
-          id: '3',
-          type: 'warning',
-          title: 'New User Registration',
-          message: '5 new users have registered and are pending approval.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 15),
-          read: false,
-          category: 'user',
-          action: {
-            label: 'Review Users',
-            url: '/admin/dashboard',
-          },
-        },
-        {
-          id: '4',
-          type: 'error',
-          title: 'System Alert',
-          message: 'High server load detected. Please check system status.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 45),
-          read: false,
-          category: 'system',
-          action: {
-            label: 'View Details',
-            url: '/admin/settings',
-          },
-        },
-        {
-          id: '5',
-          type: 'info',
-          title: 'Database Backup Completed',
-          message: 'Automated database backup completed successfully.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-          read: true,
-          category: 'system',
-        },
-      ];
-    }
 
     if (user?.role === 'teacher') {
       return [
         ...baseNotifications,
         {
-          id: '3',
-          type: 'success',
-          title: 'Session Started',
-          message: 'Your teaching session "Mathematics 101" has started successfully.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 10),
-          read: false,
-          category: 'session',
-          action: {
-            label: 'View Session',
-            url: '/teacher/dashboard',
-          },
-        },
-        {
-          id: '4',
+          id: 'teacher-tip-1',
           type: 'info',
-          title: 'Student Joined Session',
-          message: '3 new students have joined your current session.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 25),
+          title: 'Create Your First Session',
+          message: 'Go to your dashboard to create a learning session and get started with emotion tracking.',
+          timestamp: new Date(),
           read: false,
           category: 'session',
-        },
-        {
-          id: '5',
-          type: 'warning',
-          title: 'Low Engagement Alert',
-          message: 'Student engagement has dropped below 60% in your session.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 40),
-          read: true,
-          category: 'session',
           action: {
-            label: 'View Analytics',
+            label: 'Go to Dashboard',
             url: '/teacher/dashboard',
           },
-        },
-        {
-          id: '6',
-          type: 'success',
-          title: 'Session Report Ready',
-          message: 'Your session report for "Physics 202" is now available.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-          read: true,
-          category: 'session',
         },
       ];
     }
@@ -162,46 +128,15 @@ function NotificationsPage() {
       return [
         ...baseNotifications,
         {
-          id: '3',
+          id: 'student-tip-1',
           type: 'info',
-          title: 'New Session Available',
-          message: 'Your teacher has started a new learning session.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 5),
+          title: 'Join a Session',
+          message: 'Enter a session code on your dashboard to join a learning session.',
+          timestamp: new Date(),
           read: false,
           category: 'session',
           action: {
-            label: 'Join Session',
-            url: '/student/dashboard',
-          },
-        },
-        {
-          id: '4',
-          type: 'success',
-          title: 'Achievement Unlocked!',
-          message: 'You earned the "Focused Learner" badge for maintaining 90%+ focus.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 20),
-          read: false,
-          category: 'achievement',
-        },
-        {
-          id: '5',
-          type: 'warning',
-          title: 'Attention Alert',
-          message: 'Your focus level has decreased. Take a short break!',
-          timestamp: new Date(Date.now() - 1000 * 60 * 35),
-          read: true,
-          category: 'session',
-        },
-        {
-          id: '6',
-          type: 'info',
-          title: 'Session Summary Available',
-          message: 'Your learning session summary is ready to review.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-          read: true,
-          category: 'session',
-          action: {
-            label: 'View Summary',
+            label: 'Go to Dashboard',
             url: '/student/dashboard',
           },
         },
@@ -211,8 +146,36 @@ function NotificationsPage() {
     return baseNotifications;
   };
 
-  const [notifications, setNotifications] = useState<Notification[]>(getMockNotifications());
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await notificationApi.getNotifications(0, 50, false);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        setNotifications(data.map(convertNotification));
+      } else {
+        // Use default notifications when no API notifications exist
+        setNotifications(getDefaultNotifications());
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch notifications:', err);
+      // Fall back to default notifications on error
+      setNotifications(getDefaultNotifications());
+      setError(null); // Don't show error to user, just use defaults
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.role]);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user, fetchNotifications]);
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
@@ -264,22 +227,55 @@ function NotificationsPage() {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      // Only call API if it's not a default notification (starts with 'welcome-' or similar)
+      if (!id.startsWith('welcome-') && !id.startsWith('teacher-tip-') && !id.startsWith('student-tip-')) {
+        await notificationApi.markAsRead(id);
+      }
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.id === id ? { ...notif, read: true } : notif
+        )
+      );
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+      // Update locally anyway
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.id === id ? { ...notif, read: true } : notif
+        )
+      );
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  const markAllAsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications(prev =>
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+      // Update locally anyway
+      setNotifications(prev =>
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      // Only call API if it's not a default notification
+      if (!id.startsWith('welcome-') && !id.startsWith('teacher-tip-') && !id.startsWith('student-tip-')) {
+        await notificationApi.deleteNotification(id);
+      }
+      setNotifications(prev => prev.filter(notif => notif.id !== id));
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+      // Still remove locally
+      setNotifications(prev => prev.filter(notif => notif.id !== id));
+    }
   };
 
   const clearAll = () => {
@@ -334,6 +330,16 @@ function NotificationsPage() {
               </p>
             </div>
             <div className="flex gap-2">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={fetchNotifications}
+                disabled={isLoading}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </motion.button>
               {unreadCount > 0 && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -462,6 +468,24 @@ function NotificationsPage() {
                             )}
                           </div>
                           <p className="text-gray-600 mb-3">{notification.message}</p>
+
+                          {/* Session Code Display */}
+                          {notification.sessionCode && (
+                            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-3">
+                              <p className="text-sm text-gray-600 mb-1">Session Code:</p>
+                              <p className="text-2xl font-bold text-primary-600 font-mono tracking-wider">
+                                {notification.sessionCode}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(notification.sessionCode!);
+                                }}
+                                className="mt-2 text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                              >
+                                📋 Copy Code
+                              </button>
+                            </div>
+                          )}
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 flex-wrap">

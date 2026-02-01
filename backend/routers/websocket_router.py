@@ -1,12 +1,19 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from typing import Dict, List
+from typing import Dict, List, Optional
 import json
+import asyncio
 from datetime import datetime
 from database import get_database
 from emotion_detector import EmotionDetector
 import os
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 router = APIRouter()
+
+# WebSocket configuration
+WS_PING_INTERVAL = 20  # Send ping every 20 seconds
+WS_PING_TIMEOUT = 30   # Wait 30 seconds for pong response
+WS_CLOSE_TIMEOUT = 5   # Wait 5 seconds for close handshake
 
 # Initialize emotion detector (singleton)
 emotion_detector = None
@@ -38,8 +45,14 @@ class ConnectionManager:
     def __init__(self):
         # Store connections by session_id -> role -> connections
         self.active_connections: Dict[str, Dict[str, List[WebSocket]]] = {}
+        # Store last ping time for each connection
+        self.last_ping: Dict[WebSocket, datetime] = {}
+        # Store connection state
+        self.connection_alive: Dict[WebSocket, bool] = {}
+        # Store user info by WebSocket for retrieval on disconnect
+        self.user_info: Dict[WebSocket, Dict] = {}
     
-    async def connect(self, websocket: WebSocket, session_id: str, role: str, user_id: str):
+    async def connect(self, websocket: WebSocket, session_id: str, role: str, user_id: str, user_name: str = None):
         """Connect a WebSocket client"""
         # Accept connection without origin checking (for development)
         await websocket.accept()
@@ -48,10 +61,31 @@ class ConnectionManager:
             self.active_connections[session_id] = {"teacher": [], "students": []}
         
         self.active_connections[session_id][role].append(websocket)
-        print(f"{role.capitalize()} {user_id} connected to session {session_id}")
+        self.last_ping[websocket] = datetime.utcnow()
+        self.connection_alive[websocket] = True
+        # Store user info for later retrieval
+        self.user_info[websocket] = {
+            "user_id": user_id,
+            "user_name": user_name,
+            "session_id": session_id,
+            "role": role
+        }
+        print(f"{role.capitalize()} {user_name or user_id} connected to session {session_id}")
+    
+    def get_user_info(self, websocket: WebSocket) -> Dict:
+        """Get stored user info for a WebSocket connection"""
+        return self.user_info.get(websocket, {})
     
     def disconnect(self, websocket: WebSocket, session_id: str, role: str, user_id: str):
         """Disconnect a WebSocket client"""
+        # Clean up tracking
+        if websocket in self.last_ping:
+            del self.last_ping[websocket]
+        if websocket in self.connection_alive:
+            del self.connection_alive[websocket]
+        if websocket in self.user_info:
+            del self.user_info[websocket]
+            
         if session_id in self.active_connections and role in self.active_connections[session_id]:
             if websocket in self.active_connections[session_id][role]:
                 self.active_connections[session_id][role].remove(websocket)
@@ -62,6 +96,37 @@ class ConnectionManager:
                 not self.active_connections[session_id]["students"]):
                 del self.active_connections[session_id]
     
+    def is_connected(self, websocket: WebSocket) -> bool:
+        """Check if a WebSocket is still connected"""
+        return self.connection_alive.get(websocket, False)
+    
+    def mark_disconnected(self, websocket: WebSocket):
+        """Mark a WebSocket as disconnected"""
+        self.connection_alive[websocket] = False
+    
+    async def safe_send_json(self, websocket: WebSocket, message: dict) -> bool:
+        """Safely send JSON message, returns False if connection is dead"""
+        if not self.is_connected(websocket):
+            return False
+        try:
+            await asyncio.wait_for(
+                websocket.send_json(message),
+                timeout=5.0  # 5 second timeout for sending
+            )
+            return True
+        except asyncio.TimeoutError:
+            print(f"Timeout sending message to WebSocket")
+            self.mark_disconnected(websocket)
+            return False
+        except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect) as e:
+            print(f"Connection closed while sending: {e}")
+            self.mark_disconnected(websocket)
+            return False
+        except Exception as e:
+            print(f"Error sending to WebSocket: {e}")
+            self.mark_disconnected(websocket)
+            return False
+    
     async def send_to_teacher(self, session_id: str, message: dict):
         """Send message to teacher in a session"""
         if session_id in self.active_connections:
@@ -69,24 +134,39 @@ class ConnectionManager:
             if not teacher_connections:
                 print(f"⚠️ No teacher connections for session {session_id}")
                 return
+            dead_connections = []
             for connection in teacher_connections:
-                try:
-                    await connection.send_json(message)
-                    if message.get("type") == "student_update":
-                        print(f"✅ Sent update to teacher")
-                except Exception as e:
-                    print(f"❌ Error sending to teacher: {e}")
+                success = await self.safe_send_json(connection, message)
+                if not success:
+                    dead_connections.append(connection)
+                else:
+                    msg_type = message.get("type")
+                    if msg_type == "student_update":
+                        print(f"✅ Sent student_update to teacher")
+                    elif msg_type == "student_leave":
+                        data = message.get('data', {})
+                        print(f"✅ Sent student_leave to teacher: {data.get('student_name')} ({data.get('student_id')})")
+            
+            # Remove dead connections
+            for conn in dead_connections:
+                if conn in self.active_connections[session_id]["teacher"]:
+                    self.active_connections[session_id]["teacher"].remove(conn)
         else:
             print(f"⚠️ Session {session_id} not in active_connections")
     
     async def send_to_students(self, session_id: str, message: dict):
         """Send message to all students in a session"""
         if session_id in self.active_connections:
+            dead_connections = []
             for connection in self.active_connections[session_id]["students"]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    print(f"Error sending to students: {e}")
+                success = await self.safe_send_json(connection, message)
+                if not success:
+                    dead_connections.append(connection)
+            
+            # Remove dead connections
+            for conn in dead_connections:
+                if conn in self.active_connections[session_id]["students"]:
+                    self.active_connections[session_id]["students"].remove(conn)
     
     async def send_to_all(self, session_id: str, message: dict):
         """Send message to everyone in a session"""
@@ -126,6 +206,21 @@ async def teacher_websocket(websocket: WebSocket, session_id: str, teacher_id: s
         # Fetch fresh session data with all students
         session = await db.sessions.find_one({"_id": session_id})
         
+        # Serialize students data (convert datetime objects to strings)
+        serialized_students = []
+        for student in session.get("students", []):
+            s = {
+                "id": student.get("id"),
+                "name": student.get("name"),
+                "email": student.get("email"),
+                "emotion": student.get("emotion"),
+                "engagement": student.get("engagement"),
+                "focus_level": student.get("focus_level")
+            }
+            if student.get("joined_at"):
+                s["joined_at"] = student["joined_at"].isoformat() if hasattr(student["joined_at"], 'isoformat') else str(student["joined_at"])
+            serialized_students.append(s)
+        
         # Send initial session data with all currently enrolled students
         await websocket.send_json({
             "type": "connected",
@@ -134,7 +229,7 @@ async def teacher_websocket(websocket: WebSocket, session_id: str, teacher_id: s
                 "id": session["_id"],
                 "code": session["session_code"],
                 "subject": session["subject"],
-                "students": session["students"]
+                "students": serialized_students
             }
         })
         
@@ -150,8 +245,24 @@ async def teacher_websocket(websocket: WebSocket, session_id: str, teacher_id: s
             })
         
         while True:
-            # Receive messages from teacher
-            data = await websocket.receive_json()
+            # Receive messages from teacher with timeout
+            try:
+                # Use asyncio.wait_for to add timeout to receive
+                data = await asyncio.wait_for(
+                    websocket.receive_json(),
+                    timeout=WS_PING_TIMEOUT + 10  # Allow extra time beyond ping timeout
+                )
+            except asyncio.TimeoutError:
+                # No message received in timeout period, check if connection is alive
+                try:
+                    await websocket.send_json({"type": "ping", "timestamp": datetime.utcnow().isoformat()})
+                    continue
+                except Exception:
+                    print(f"Teacher {teacher_id} connection timed out")
+                    break
+            except (ConnectionClosedError, ConnectionClosedOK) as e:
+                print(f"Teacher WebSocket connection closed: {e}")
+                break
             
             message_type = data.get("type")
             
@@ -173,15 +284,26 @@ async def teacher_websocket(websocket: WebSocket, session_id: str, teacher_id: s
             
             elif message_type == "ping":
                 # Respond to ping
-                await websocket.send_json({
-                    "type": "pong",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                manager.last_ping[websocket] = datetime.utcnow()
+                try:
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                except Exception as e:
+                    print(f"Error sending pong to teacher: {e}")
+                    break
     
     except WebSocketDisconnect:
+        print(f"Teacher {teacher_id} disconnected normally")
+        manager.disconnect(websocket, session_id, "teacher", teacher_id)
+    except (ConnectionClosedError, ConnectionClosedOK) as e:
+        print(f"Teacher WebSocket closed: {e}")
         manager.disconnect(websocket, session_id, "teacher", teacher_id)
     except Exception as e:
         print(f"Error in teacher WebSocket: {e}")
+        import traceback
+        traceback.print_exc()
         manager.disconnect(websocket, session_id, "teacher", teacher_id)
 
 @router.websocket("/ws/session/{session_id}/student/{student_id}")
@@ -192,6 +314,9 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
     # Check if this is a mock session (for development/testing)
     is_mock_session = session_id.startswith("mock_session_")
     
+    # Variable to store student name for caching
+    student_name_for_cache = "Unknown"
+    
     if not is_mock_session:
         # Verify session exists
         session = await db.sessions.find_one({"_id": session_id})
@@ -201,8 +326,10 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
         
         # Check if student is in session (authentication already done at join time)
         # Accept connection if student exists in session
-        student_in_session = any(s["id"] == student_id for s in session["students"])
-        if not student_in_session:
+        student_in_session = next((s for s in session["students"] if s["id"] == student_id), None)
+        if student_in_session:
+            student_name_for_cache = student_in_session.get("name", "Unknown")
+        else:
             # Student might have just joined, allow connection anyway
             print(f"Warning: Student {student_id} not found in session, but allowing connection")
     else:
@@ -214,9 +341,12 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
             "teacher_name": "Mock Teacher",
             "students": []
         }
+        student_name_for_cache = f"MockStudent_{student_id[:8]}"
         print(f"Mock session detected: {session_id}, allowing connection for testing")
     
-    await manager.connect(websocket, session_id, "students", student_id)
+    # Connect with student name cached for later use (e.g., when they disconnect)
+    await manager.connect(websocket, session_id, "students", student_id, student_name_for_cache)
+    print(f"🔗 Student {student_name_for_cache} ({student_id}) connected and cached")
     
     try:
         # Send initial connection confirmation
@@ -250,28 +380,52 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
         while True:
             # Receive messages from student with timeout
             try:
-                data = await websocket.receive_json()
+                # Use asyncio.wait_for to add timeout to receive
+                data = await asyncio.wait_for(
+                    websocket.receive_json(),
+                    timeout=WS_PING_TIMEOUT + 10  # Allow extra time beyond ping timeout
+                )
+            except asyncio.TimeoutError:
+                # No message received in timeout period, check if connection is alive
+                try:
+                    await websocket.send_json({"type": "ping", "timestamp": datetime.utcnow().isoformat()})
+                    continue
+                except Exception:
+                    print(f"Student {student_id} connection timed out")
+                    break
             except WebSocketDisconnect:
                 print(f"WebSocket disconnected for {student_id}")
+                break
+            except (ConnectionClosedError, ConnectionClosedOK) as e:
+                print(f"Student WebSocket connection closed: {e}")
                 break
             except Exception as e:
                 # Log error but continue - don't break connection for processing errors
                 print(f"Error receiving message from {student_id}: {e}")
+                # Check if connection is still alive
+                if not manager.is_connected(websocket):
+                    break
                 continue
             
             message_type = data.get("type")
             
             if message_type == "ping":
                 # Respond to ping to keep connection alive
-                await websocket.send_json({
-                    "type": "pong",
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                manager.last_ping[websocket] = datetime.utcnow()
+                try:
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+                except Exception as e:
+                    print(f"Error sending pong to student: {e}")
+                    break
                 continue
             
             if message_type == "video_frame":
                 # Process video frame for emotion detection
                 detector = get_emotion_detector()
+                print(f"🎥 Processing video frame for {student_id}, is_mock={is_mock_session}, detector={detector is not None}")
                 if detector:
                     try:
                         frame_data = data.get("frame")  # Base64 encoded image
@@ -287,6 +441,7 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                                 print(f"  - Eye Openness: {emotion_result.get('eye_openness')}")
                             
                             # Update student in session (skip for mock sessions)
+                            print(f"💾 About to save, is_mock_session={is_mock_session}")
                             if not is_mock_session:
                                 await db.sessions.update_one(
                                     {
@@ -317,18 +472,26 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                                     "pose": emotion_result.get("pose", {}),
                                     "timestamp": datetime.utcnow()
                                 }
-                                await db.engagement_data.insert_one(engagement_history)
+                                try:
+                                    await db.engagement_data.insert_one(engagement_history)
+                                    print(f"📊 Saved engagement data for {student_id}: focus={emotion_result.get('focus_level')}%, emotion={emotion_result.get('emotion')}")
+                                except Exception as db_err:
+                                    print(f"❌ Error saving engagement data: {db_err}")
                             else:
                                 # Only log mock results when face is detected
                                 if emotion_result.get('face_detected'):
                                     print(f"Mock session - emotion result: {emotion_result}")
                             
                             # Send result back to student (always send, even if no face detected)
-                            await websocket.send_json({
+                            send_success = await manager.safe_send_json(websocket, {
                                 "type": "emotion_result",
                                 "data": emotion_result,
                                 "timestamp": datetime.utcnow().isoformat()
                             })
+                            
+                            if not send_success:
+                                print(f"Failed to send emotion result to student {student_id}, connection may be closed")
+                                break
                             
                             # Broadcast to teacher (skip for mock sessions)
                             if not is_mock_session:
@@ -358,12 +521,15 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                         traceback.print_exc()
                         # Send error but keep connection alive
                         try:
-                            await websocket.send_json({
+                            send_success = await manager.safe_send_json(websocket, {
                                 "type": "error",
                                 "message": f"Error processing frame: {str(e)}",
                                 "timestamp": datetime.utcnow().isoformat()
                             })
-                        except:
+                            if not send_success:
+                                print(f"Connection lost while sending error to student {student_id}")
+                                break
+                        except Exception:
                             pass  # If send fails, just continue
             
             elif message_type == "engagement_update":
@@ -415,7 +581,117 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                 })
     
     except WebSocketDisconnect:
+        print(f"📤 Student {student_id} disconnected from session {session_id}")
+        # Get student name from cache (set when they connected)
+        cached_info = manager.get_user_info(websocket)
+        student_name = cached_info.get("user_name", "Unknown")
+        print(f"📋 Using cached student name: {student_name}")
+        
+        # Try to remove from database if they haven't already left via API
+        should_notify = False
+        try:
+            if not is_mock_session:
+                result = await db.sessions.update_one(
+                    {"_id": session_id},
+                    {"$pull": {"students": {"id": student_id}}}
+                )
+                if result.modified_count > 0:
+                    print(f"✅ Removed student {student_name} from session database")
+                    should_notify = True  # Only notify if we actually removed them
+                else:
+                    print(f"ℹ️ Student {student_name} already removed from database (left via API - notification already sent)")
+        except Exception as db_err:
+            print(f"Error removing student from database: {db_err}")
+        
+        # Notify teacher that student left (only if they weren't already removed via API)
+        if should_notify:
+            try:
+                await manager.send_to_teacher(session_id, {
+                    "type": "student_leave",
+                    "data": {
+                        "student_id": student_id,
+                        "student_name": student_name,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "source": "websocket"
+                    }
+                })
+                print(f"📨 Sent student_leave notification to teacher for {student_name}")
+            except Exception as notify_err:
+                print(f"Could not notify teacher of student leave: {notify_err}")
+        manager.disconnect(websocket, session_id, "students", student_id)
+    except (ConnectionClosedError, ConnectionClosedOK) as e:
+        print(f"Student WebSocket connection closed: {e}")
+        # Get student name from cache
+        cached_info = manager.get_user_info(websocket)
+        student_name = cached_info.get("user_name", "Unknown")
+        
+        # Try to remove from database if they haven't already left via API
+        should_notify = False
+        try:
+            if not is_mock_session:
+                result = await db.sessions.update_one(
+                    {"_id": session_id},
+                    {"$pull": {"students": {"id": student_id}}}
+                )
+                if result.modified_count > 0:
+                    print(f"✅ Removed student {student_name} from session database")
+                    should_notify = True
+                else:
+                    print(f"ℹ️ Student {student_name} already removed (left via API)")
+        except Exception as db_err:
+            print(f"Error removing student from database: {db_err}")
+        
+        # Notify teacher that student left (only if they weren't already removed via API)
+        if should_notify:
+            try:
+                await manager.send_to_teacher(session_id, {
+                    "type": "student_leave",
+                    "data": {
+                        "student_id": student_id,
+                        "student_name": student_name,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "source": "websocket"
+                    }
+                })
+            except Exception as notify_err:
+                print(f"Could not notify teacher of student leave: {notify_err}")
         manager.disconnect(websocket, session_id, "students", student_id)
     except Exception as e:
         print(f"Error in student WebSocket: {e}")
+        import traceback
+        traceback.print_exc()
+        # Get student name from cache
+        cached_info = manager.get_user_info(websocket)
+        student_name = cached_info.get("user_name", "Unknown")
+        
+        # Try to remove from database if they haven't already left via API
+        should_notify = False
+        try:
+            if not is_mock_session:
+                result = await db.sessions.update_one(
+                    {"_id": session_id},
+                    {"$pull": {"students": {"id": student_id}}}
+                )
+                if result.modified_count > 0:
+                    print(f"✅ Removed student {student_name} from session database")
+                    should_notify = True
+                else:
+                    print(f"ℹ️ Student {student_name} already removed (left via API)")
+        except Exception as db_err:
+            print(f"Error removing student from database: {db_err}")
+        
+        # Notify teacher that student left (only if they weren't already removed via API)
+        if should_notify:
+            try:
+                await manager.send_to_teacher(session_id, {
+                    "type": "student_leave",
+                    "data": {
+                        "student_id": student_id,
+                        "student_name": student_name,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "source": "websocket"
+                    }
+                })
+            except Exception as notify_err:
+                print(f"Could not notify teacher of student leave: {notify_err}")
         manager.disconnect(websocket, session_id, "students", student_id)

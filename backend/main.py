@@ -76,5 +76,9 @@ if __name__ == "__main__":
         port=8000, 
         reload=True,
         proxy_headers=True,  # Trust X-Forwarded-* headers
-        forwarded_allow_ips="*"  # Allow forwarded IPs from any proxy
+        forwarded_allow_ips="*",  # Allow forwarded IPs from any proxy
+        # WebSocket configuration for stability
+        ws_ping_interval=20.0,  # Send ping every 20 seconds
+        ws_ping_timeout=30.0,   # Wait 30 seconds for pong response
+        timeout_keep_alive=60,  # Keep connections alive for 60 seconds
     )
