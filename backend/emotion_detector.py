@@ -462,31 +462,35 @@ class EmotionDetector:
             return 1.0
     
     def adapt_thresholds(self):
-        """Adapt detection thresholds based on conditions"""
-        base_focus = 0.35
-        base_vertical = 0.4
+        """Adapt detection thresholds based on conditions - Calibrated for webcam gaze tracking"""
+        # Base thresholds - CALIBRATED for real webcam setups
+        # Natural baseline gaze values can be -0.15 horizontal and -0.15 vertical
+        # due to camera position and eye asymmetry
+        # Only trigger "looking away" for SIGNIFICANT eye movements beyond natural variation
+        base_focus = 0.20  # Horizontal threshold - allows ±0.20 as "looking at screen"
+        base_vertical = 0.25  # Vertical threshold - allows ±0.25 to account for camera angle
         base_ear = 0.2
         
-        # Adjust for distance - more lenient for both close and far
+        # Adjust for distance - when CLOSE, be slightly more lenient
         if self.face_distance < 1.0:
-            distance_factor = 1.0 + (1.0 - self.face_distance) * 0.5
+            distance_factor = 1.0 + (1.0 - self.face_distance) * 0.2
         else:
-            distance_factor = 1.0 + (self.face_distance - 1.0) * 0.3
+            distance_factor = 1.0 + (self.face_distance - 1.0) * 0.15
         
-        # Adjust for glasses
-        glasses_factor = 1.15 if self.wearing_glasses else 1.0
+        # Glasses adjustment - glasses can affect detection
+        glasses_factor = 1.1 if self.wearing_glasses else 1.0
         
         # Adjust for lighting
-        lighting_factor = 1.0 + (1.0 - self.lighting_quality) * 0.2
+        lighting_factor = 1.0 + (1.0 - self.lighting_quality) * 0.1
         
         # Apply adjustments
         self.adaptive_focus_threshold = base_focus * distance_factor * glasses_factor
         self.adaptive_vertical_threshold = base_vertical * distance_factor
         self.adaptive_ear_threshold = base_ear * lighting_factor * (0.9 if self.wearing_glasses else 1.0)
         
-        # Clamp to reasonable ranges
-        self.adaptive_focus_threshold = np.clip(self.adaptive_focus_threshold, 0.30, 0.65)
-        self.adaptive_vertical_threshold = np.clip(self.adaptive_vertical_threshold, 0.35, 0.7)
+        # Clamp to reasonable ranges - allow for natural eye position variation
+        self.adaptive_focus_threshold = np.clip(self.adaptive_focus_threshold, 0.18, 0.35)
+        self.adaptive_vertical_threshold = np.clip(self.adaptive_vertical_threshold, 0.22, 0.40)
         self.adaptive_ear_threshold = np.clip(self.adaptive_ear_threshold, 0.15, 0.28)
     
     def enhance_frame_quality(self, frame):
@@ -652,18 +656,18 @@ class EmotionDetector:
                 'error': str(e)
             }
     
-    def calculate_gaze_ratio(self, landmarks, eye_points, iris_points, frame_shape):
-        """Calculate gaze ratio for eye tracking focus detection"""
+    def calculate_gaze_ratio(self, eye_points, iris_points, frame_shape):
+        """Calculate gaze ratio to determine if user is looking at screen - matches eye_tracking_monitor2.py methodology"""
         try:
             h, w = frame_shape[:2]
             
-            # Get eye region
-            eye_region = np.array([(landmarks[i].x * w, landmarks[i].y * h) 
-                                   for i in eye_points], dtype=np.float32)
+            # Get eye region - use landmark objects directly
+            eye_region = np.array([(point.x * w, point.y * h) 
+                                   for point in eye_points], dtype=np.int32)
             
             # Get iris center
-            iris_center = np.mean([(landmarks[i].x * w, landmarks[i].y * h) 
-                                   for i in iris_points], axis=0)
+            iris_center = np.mean([(point.x * w, point.y * h) 
+                                   for point in iris_points], axis=0)
             
             # Calculate eye center
             eye_center = np.mean(eye_region, axis=0)
@@ -679,8 +683,15 @@ class EmotionDetector:
             horizontal_ratio = (iris_center[0] - eye_center[0]) / (eye_width / 2)
             vertical_ratio = (iris_center[1] - eye_center[1]) / (eye_height / 2)
             
+            # Debug logging
+            print(f"  Iris: ({iris_center[0]:.1f}, {iris_center[1]:.1f}), Eye: ({eye_center[0]:.1f}, {eye_center[1]:.1f}), "
+                  f"Size: ({eye_width:.1f}x{eye_height:.1f}), Ratios: ({horizontal_ratio:.3f}, {vertical_ratio:.3f})")
+            
             return horizontal_ratio, vertical_ratio
         except Exception as e:
+            print(f"Error calculating gaze ratio: {e}")
+            import traceback
+            traceback.print_exc()
             return 0, 0
     
     def calculate_head_pose_deviation(self, landmarks, frame_shape):
@@ -711,7 +722,7 @@ class EmotionDetector:
             return 0, 0
     
     def detect_gaze_direction(self, left_gaze, right_gaze):
-        """Detect gaze direction (CENTER, LEFT, RIGHT, UP, DOWN)"""
+        """Detect gaze direction (CENTER, LEFT, RIGHT, UP, DOWN, and combinations)"""
         try:
             left_h, left_v = left_gaze
             right_h, right_v = right_gaze
@@ -727,17 +738,26 @@ class EmotionDetector:
             # Log gaze values for debugging
             print(f"Gaze values - H: {avg_h:.3f}, V: {avg_v:.3f}, Thresholds - H: {h_threshold:.3f}, V: {v_threshold:.3f}")
             
-            # Determine direction
-            if avg_v < -v_threshold:
-                return "UP"
-            elif avg_v > v_threshold:
-                return "DOWN"
-            elif avg_h < -h_threshold:
-                return "LEFT"
-            elif avg_h > h_threshold:
-                return "RIGHT"
-            else:
-                return "CENTER"
+            # Determine direction with priority to vertical movements
+            # Check vertical first (more noticeable)
+            if abs(avg_v) > v_threshold:
+                if avg_v < -v_threshold:
+                    # Looking up
+                    if abs(avg_h) > h_threshold:
+                        return "UP-LEFT" if avg_h < 0 else "UP-RIGHT"
+                    return "UP"
+                else:
+                    # Looking down
+                    if abs(avg_h) > h_threshold:
+                        return "DOWN-LEFT" if avg_h < 0 else "DOWN-RIGHT"
+                    return "DOWN"
+            
+            # Check horizontal
+            if abs(avg_h) > h_threshold:
+                return "LEFT" if avg_h < 0 else "RIGHT"
+            
+            # Only CENTER if both are within strict thresholds
+            return "CENTER"
         except Exception as e:
             print(f"Error detecting gaze direction: {e}")
             return "CENTER"
@@ -766,8 +786,7 @@ class EmotionDetector:
     
     def is_focused_on_screen(self, landmarks, frame_shape):
         """
-        Determine if user is focused on screen using advanced eye tracking.
-        Includes glasses detection, distance adaptation, lighting compensation, and blink detection.
+        Determine if user is focused on screen - EXACT logic from eye_tracking_monitor2.py
         Returns (is_focused: bool, gaze_direction: str, eye_openness: float)
         """
         try:
@@ -785,45 +804,89 @@ class EmotionDetector:
             # Adapt thresholds based on current conditions
             self.adapt_thresholds()
             
+            # Get eye and iris landmark objects
+            left_eye_points = [landmarks[i] for i in self.LEFT_EYE]
+            right_eye_points = [landmarks[i] for i in self.RIGHT_EYE]
+            left_iris_points = [landmarks[i] for i in self.LEFT_IRIS]
+            right_iris_points = [landmarks[i] for i in self.RIGHT_IRIS]
+            
             # Calculate gaze ratios for both eyes
-            left_gaze = self.calculate_gaze_ratio(landmarks, self.LEFT_EYE, self.LEFT_IRIS, frame_shape)
-            right_gaze = self.calculate_gaze_ratio(landmarks, self.RIGHT_EYE, self.RIGHT_IRIS, frame_shape)
+            left_gaze = self.calculate_gaze_ratio(left_eye_points, left_iris_points, frame_shape)
+            right_gaze = self.calculate_gaze_ratio(right_eye_points, right_iris_points, frame_shape)
             
-            # Detect gaze direction
-            gaze_direction = self.detect_gaze_direction(left_gaze, right_gaze)
+            left_h, left_v = left_gaze
+            right_h, right_v = right_gaze
             
-            # Calculate eye openness (EAR - Eye Aspect Ratio)
-            left_ear = self.calculate_eye_aspect_ratio(landmarks, self.LEFT_EYE)
-            right_ear = self.calculate_eye_aspect_ratio(landmarks, self.RIGHT_EYE)
+            # Calculate eye openness (EAR - Eye Aspect Ratio) using eye points directly
+            left_ear = self.calculate_ear_from_points(left_eye_points)
+            right_ear = self.calculate_ear_from_points(right_eye_points)
             avg_ear = (left_ear + right_ear) / 2
             
-            # Check for blinks vs prolonged eye closure
+            # Check for blinks vs prolonged eye closure - EXACT from eye_tracking_monitor2.py
             is_blink = self.is_blinking(left_ear, right_ear)
-            eyes_closed = avg_ear < self.adaptive_ear_threshold and not is_blink
+            
+            # Use adaptive thresholds - EXACTLY as eye_tracking_monitor2.py
+            ear_threshold = self.adaptive_ear_threshold
+            focus_threshold = self.adaptive_focus_threshold
+            vertical_threshold = self.adaptive_vertical_threshold
             
             # Calculate head pose deviation
             head_h, head_v = self.calculate_head_pose_deviation(landmarks, frame_shape)
             
-            # Determine head position threshold based on distance
+            # Head threshold - EXACT from eye_tracking_monitor2.py
             if self.face_distance < 1.0:
+                # Very close - very lenient on head position
                 head_threshold = 0.4 + (1.0 - self.face_distance) * 0.3
             else:
+                # Normal/far distance
                 head_threshold = 0.3 * (1.0 + (self.face_distance - 1.0) * 0.2)
             
             head_forward = (head_h < head_threshold and head_v < head_threshold)
             
-            # Determine focus: CENTER gaze + eyes open + head forward = FOCUSED
-            # Ignore blinking when determining focus
-            if is_blink:
-                # During blink, maintain previous focus state (don't penalize)
-                is_focused = gaze_direction == "CENTER" and head_forward
-            else:
-                is_focused = (gaze_direction == "CENTER" and not eyes_closed and head_forward)
+            # Determine gaze direction for display
+            avg_h = (left_h + right_h) / 2
+            avg_v = (left_v + right_v) / 2
             
-            # Log comprehensive focus detection results
-            print(f"Focus Detection - Direction: {gaze_direction}, Eyes Closed: {eyes_closed}, Blink: {is_blink}, "
-                  f"EAR: {avg_ear:.3f}, Head Forward: {head_forward}, Glasses: {self.wearing_glasses}, "
-                  f"Distance: {self.face_distance:.2f}, Lighting: {self.lighting_quality:.2f}, Focused: {is_focused}")
+            # Check for vertical gaze FIRST (looking up or down significantly)
+            looking_up_down = (abs(left_v) > vertical_threshold or abs(right_v) > vertical_threshold)
+            
+            # Check if horizontal gaze is roughly centered
+            gaze_centered = (abs(left_h) < focus_threshold and abs(right_h) < focus_threshold)
+            
+            # Determine gaze direction string
+            if looking_up_down:
+                if avg_v < -vertical_threshold:
+                    gaze_direction = "UP"
+                else:
+                    gaze_direction = "DOWN"
+            elif not gaze_centered:
+                if avg_h < -focus_threshold:
+                    gaze_direction = "LEFT"
+                elif avg_h > focus_threshold:
+                    gaze_direction = "RIGHT"
+                else:
+                    gaze_direction = "CENTER"
+            else:
+                gaze_direction = "CENTER"
+            
+            # EXACT is_focused logic from eye_tracking_monitor2.py
+            # If eyes are closed and it's not a blink, user is unfocused
+            if avg_ear < ear_threshold and not is_blink:
+                is_focused = False
+            # Ignore if currently blinking - don't penalize for blinking
+            elif is_blink:
+                is_focused = True
+            # Check for vertical gaze (looking up or down significantly)
+            elif looking_up_down:
+                is_focused = False
+            # Check gaze and head position
+            else:
+                is_focused = gaze_centered and head_forward
+            
+            # Log for debugging
+            print(f"Focus Detection - Direction: {gaze_direction}, Gaze H: {avg_h:.3f}, V: {avg_v:.3f}, "
+                  f"Thresholds: H={focus_threshold:.3f}, V={vertical_threshold:.3f}, "
+                  f"EAR: {avg_ear:.3f}, Blink: {is_blink}, Head Forward: {head_forward}, Focused: {is_focused}")
             
             return bool(is_focused), str(gaze_direction), float(avg_ear)
             
@@ -831,8 +894,30 @@ class EmotionDetector:
             print(f"Error in focus detection: {e}")
             import traceback
             traceback.print_exc()
-            # Return False on error to be safe (not focused)
             return False, "ERROR", 0.0
+    
+    def calculate_ear_from_points(self, eye_points):
+        """Calculate Eye Aspect Ratio from eye landmark points - EXACT from eye_tracking_monitor2.py"""
+        try:
+            # Convert landmarks to numpy array
+            points = np.array([(p.x, p.y) for p in eye_points])
+            
+            # Compute vertical distances
+            vertical_1 = np.linalg.norm(points[1] - points[5])
+            vertical_2 = np.linalg.norm(points[2] - points[4])
+            
+            # Compute horizontal distance
+            horizontal = np.linalg.norm(points[0] - points[3])
+            
+            # Avoid division by zero
+            if horizontal == 0:
+                return 0
+            
+            # Eye Aspect Ratio
+            ear = (vertical_1 + vertical_2) / (2.0 * horizontal)
+            return ear
+        except Exception as e:
+            return 0.25
     
     def process_base64_frame(self, base64_image: str) -> Dict:
         """

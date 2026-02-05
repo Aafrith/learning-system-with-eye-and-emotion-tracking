@@ -85,6 +85,10 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const [sessionDuration, setSessionDuration] = useState(0)
   const [notes, setNotes] = useState('')
   const [isTeacherVideoFullscreen, setIsTeacherVideoFullscreen] = useState(false)
+  const [lastEngagementState, setLastEngagementState] = useState<'active' | 'passive' | 'distracted'>('active')
+  const [lastEngagementTime, setLastEngagementTime] = useState<number>(Date.now())
+  const [currentGazeDirection, setCurrentGazeDirection] = useState<string>('CENTER')
+  const [isCurrentlyFocusedGaze, setIsCurrentlyFocusedGaze] = useState<boolean>(true)
 
   // Validate Agora config on mount
   useEffect(() => {
@@ -92,12 +96,19 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
     setAgoraConfigValid(validation.valid)
   }, [])
 
-  // Timer for session duration
+  // Timer for session duration and engagement tracking
   useEffect(() => {
     if (!isInSession) return
 
     const interval = setInterval(() => {
       setSessionDuration(prev => prev + 1)
+      
+      // Update engagement data based on current state (1 second per interval)
+      setStats(prev => {
+        const newStats = { ...prev }
+        newStats.engagementData[prev.engagement]++
+        return newStats
+      })
     }, 1000)
 
     return () => clearInterval(interval)
@@ -421,6 +432,14 @@ Duration: ${formatDuration(sessionDuration)}
   }) => {
     if (!emotionData.emotion) return
     
+    // Update current gaze state
+    if (emotionData.gaze_direction !== undefined) {
+      setCurrentGazeDirection(emotionData.gaze_direction)
+    }
+    if (emotionData.is_focused_gaze !== undefined) {
+      setIsCurrentlyFocusedGaze(emotionData.is_focused_gaze)
+    }
+    
     const emotion = emotionData.emotion
     setStats(prev => {
       const newStats = { 
@@ -430,9 +449,8 @@ Duration: ${formatDuration(sessionDuration)}
         focusLevel: emotionData.focus_level // Use backend's focus level
       }
       
-      // Increment engagement data based on backend's classification
-      // This represents detection events (roughly 1 per second when streaming)
-      newStats.engagementData[emotionData.engagement]++
+      // Don't increment here - let the timer handle it for accurate timing
+      // Just update the current state
       
       // Track gaze focus data
       if (emotionData.is_focused_gaze !== undefined) {
@@ -478,19 +496,30 @@ Duration: ${formatDuration(sessionDuration)}
   }
 
   const handleEmotionData = (data: any) => {
+    console.log('Received emotion data:', data)
+    
     if (data.emotion) {
+      // Update current gaze state
+      if (data.gaze_direction !== undefined) {
+        setCurrentGazeDirection(data.gaze_direction)
+      }
+      if (data.is_focused_gaze !== undefined) {
+        setIsCurrentlyFocusedGaze(data.is_focused_gaze)
+      }
+      
       setStats(prev => {
         const newStats = { 
           ...prev, 
           currentEmotion: data.emotion,
           engagement: data.engagement || prev.engagement, // Use backend's engagement
-          focusLevel: data.focus_level || prev.focusLevel // Use backend's focus level
+          focusLevel: data.focus_level !== undefined ? data.focus_level : prev.focusLevel // Use backend's focus level
         }
         
-        // Increment engagement data based on backend's classification
-        if (data.engagement) {
-          newStats.engagementData[data.engagement]++
-        }
+        console.log('Updated stats:', newStats)
+        console.log('Gaze - Direction:', data.gaze_direction, 'Focused:', data.is_focused_gaze)
+        
+        // Don't increment here - let the timer handle it for accurate timing
+        // Just update the current state
         
         // Track gaze focus data
         if (data.is_focused_gaze !== undefined) {
@@ -827,18 +856,23 @@ Duration: ${formatDuration(sessionDuration)}
                         <Eye className="w-4 h-4 mr-1" />
                         Gaze Focus:
                       </span>
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          stats.gazeData.focused > stats.gazeData.unfocused 
-                            ? 'bg-green-500 animate-pulse' 
-                            : 'bg-orange-500'
-                        }`}></div>
-                        <span className={`font-medium text-sm ${
-                          stats.gazeData.focused > stats.gazeData.unfocused 
-                            ? 'text-green-600' 
-                            : 'text-orange-600'
-                        }`}>
-                          {stats.gazeData.focused > stats.gazeData.unfocused ? 'On Screen' : 'Looking Away'}
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            isCurrentlyFocusedGaze
+                              ? 'bg-green-500 animate-pulse' 
+                              : 'bg-orange-500'
+                          }`}></div>
+                          <span className={`font-medium text-sm ${
+                            isCurrentlyFocusedGaze
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-orange-600 dark:text-orange-400'
+                          }`}>
+                            {isCurrentlyFocusedGaze ? 'On Screen' : 'Looking Away'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Direction: {currentGazeDirection}
                         </span>
                       </div>
                     </div>

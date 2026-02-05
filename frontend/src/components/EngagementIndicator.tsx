@@ -31,9 +31,9 @@ export default function EngagementIndicator({
   ]
 
   const barData = [
-    { level: 'Active', minutes: engagement.active, color: '#22c55e' },
-    { level: 'Passive', minutes: engagement.passive, color: '#f59e0b' },
-    { level: 'Distracted', minutes: engagement.distracted, color: '#ef4444' }
+    { level: 'Active', seconds: engagement.active, color: '#22c55e' },
+    { level: 'Passive', seconds: engagement.passive, color: '#f59e0b' },
+    { level: 'Distracted', seconds: engagement.distracted, color: '#ef4444' }
   ]
 
   const getEngagementIcon = (level: string) => {
@@ -89,7 +89,7 @@ export default function EngagementIndicator({
             
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-400">Total Time:</span>
-              <span className="font-medium dark:text-white">{total} minutes</span>
+              <span className="font-medium dark:text-white">{Math.floor(total / 60)}m {total % 60}s</span>
             </div>
           </div>
 
@@ -100,7 +100,7 @@ export default function EngagementIndicator({
                 <CheckCircle className="w-4 h-4 text-success-600" />
                 <span>Active</span>
               </div>
-              <span className="font-medium">{engagement.active} min ({activePercentage.toFixed(1)}%)</span>
+              <span className="font-medium">{Math.floor(engagement.active / 60)}m {engagement.active % 60}s ({activePercentage.toFixed(1)}%)</span>
             </div>
             
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -117,7 +117,7 @@ export default function EngagementIndicator({
                 <Clock className="w-4 h-4 text-warning-600" />
                 <span>Passive</span>
               </div>
-              <span className="font-medium">{engagement.passive} min ({passivePercentage.toFixed(1)}%)</span>
+              <span className="font-medium">{Math.floor(engagement.passive / 60)}m {engagement.passive % 60}s ({passivePercentage.toFixed(1)}%)</span>
             </div>
             
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -134,7 +134,7 @@ export default function EngagementIndicator({
                 <AlertTriangle className="w-4 h-4 text-danger-600" />
                 <span>Distracted</span>
               </div>
-              <span className="font-medium">{engagement.distracted} min ({distractedPercentage.toFixed(1)}%)</span>
+              <span className="font-medium">{Math.floor(engagement.distracted / 60)}m {engagement.distracted % 60}s ({distractedPercentage.toFixed(1)}%)</span>
             </div>
             
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">

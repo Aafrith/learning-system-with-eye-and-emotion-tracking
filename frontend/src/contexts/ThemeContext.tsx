@@ -52,17 +52,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(newTheme)
   }
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-white">
-        {children}
-      </div>
-    )
+  // Always wrap children in the provider to avoid "useTheme must be used within ThemeProvider" errors
+  // Use a default value when not mounted to prevent hydration mismatch
+  const value: ThemeContextType = {
+    theme,
+    setTheme,
+    toggleTheme
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   )
