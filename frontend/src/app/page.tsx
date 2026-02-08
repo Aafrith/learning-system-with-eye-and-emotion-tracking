@@ -13,9 +13,16 @@ export default function Home() {
 
   useEffect(() => {
     // Wait for auth to finish loading
-    if (!isLoading && isAuthenticated && user && user.role) {
-      // Redirect to role-specific dashboard
-      router.push(`/${user.role}/dashboard`)
+    // Auto-redirect can be disabled by setting NEXT_PUBLIC_AUTO_REDIRECT=false
+    if (
+      process.env.NEXT_PUBLIC_AUTO_REDIRECT !== 'false' &&
+      !isLoading &&
+      isAuthenticated &&
+      user &&
+      user.role
+    ) {
+      // Use replace so landing page isn't kept in history
+      router.replace(`/${user.role}/dashboard`)
     }
   }, [isAuthenticated, user, router, isLoading])
 

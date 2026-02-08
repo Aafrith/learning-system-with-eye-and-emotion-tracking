@@ -43,6 +43,7 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
   const [isFocusedGaze, setIsFocusedGaze] = useState<boolean>(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [streamReady, setStreamReady] = useState(false)
 
   useEffect(() => {
     if (isActive) {
@@ -55,6 +56,15 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
       stopVideoStream()
     }
   }, [isActive])
+
+  // Ensure stream is attached to video when ref becomes available (e.g. after mount)
+  useEffect(() => {
+    if (!isActive || !streamRef.current || !videoRef.current || !streamReady) return
+    if (videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch((e) => console.warn('Video play:', e))
+    }
+  }, [isActive, streamReady])
 
   // Handle WebSocket emotion results
   useEffect(() => {
@@ -118,20 +128,13 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
     }
   }, [websocket, onEmotionDetected])
 
-  // Send video frames to backend
+  // Send video frames to backend (start when stream is ready so video element has data)
   useEffect(() => {
-    if (!isActive || !websocket || !videoRef.current) {
-      console.log('Frame sending not started:', { 
-        isActive, 
-        websocket: !!websocket, 
-        videoRef: !!videoRef.current 
-      })
+    if (!isActive || !websocket || !streamReady) {
       return
     }
 
-    console.log('Starting frame capture interval (500ms)')
     setIsProcessing(true)
-
     // Send frames every 500ms (2 FPS) to avoid overwhelming the backend
     frameIntervalRef.current = setInterval(() => {
       captureAndSendFrame()
@@ -139,13 +142,12 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
 
     return () => {
       if (frameIntervalRef.current) {
-        console.log('Stopping frame capture interval')
         clearInterval(frameIntervalRef.current)
         frameIntervalRef.current = null
       }
       setIsProcessing(false)
     }
-  }, [isActive, websocket])
+  }, [isActive, websocket, streamReady])
 
   const captureAndSendFrame = () => {
     if (!videoRef.current || !canvasRef.current || !websocket) {
@@ -208,14 +210,17 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
         },
         audio: false
       })
-      
+
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
+      setStreamReady(true)
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = stream
+        await video.play().catch((e) => console.warn('Video autoplay:', e))
       }
     } catch (error) {
       console.error('Error accessing camera:', error)
-      alert('Unable to access camera. Please ensure camera permissions are granted.')
+      setError('Unable to access camera. Please ensure camera permissions are granted.')
     }
   }
 
@@ -238,6 +243,7 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
     setConfidence(0)
     setFaceDetected(false)
     setIsProcessing(false)
+    setStreamReady(false)
   }
 
   return (
@@ -334,14 +340,14 @@ export default function VideoFeed({ isActive, websocket, onEmotionDetected, heig
       </div>
       
       {/* Recording indicator */}
-      {isActive && (
+      {/* {isActive && (
         <div className="absolute top-4 right-4">
           <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
             <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
             <span>Recording</span>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   )
 }

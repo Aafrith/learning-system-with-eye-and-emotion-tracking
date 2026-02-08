@@ -206,9 +206,37 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
     })
 
     setWsManager(manager)
-    
+
+    // Store message/error/close listeners so we can forward manager events to VideoFeed
+    const messageListeners = new Set<(e: MessageEvent) => void>()
+    const errorListeners = new Set<EventListenerOrEventListenerObject>()
+    const closeListeners = new Set<EventListenerOrEventListenerObject>()
+
+    // Forward emotion_result from manager to VideoFeed's message listeners
+    const unsubEmotion = manager.on('emotion_result', (data: any) => {
+      const payload = JSON.stringify({ type: 'emotion_result', data })
+      const syntheticEvent = { data: payload } as MessageEvent
+      messageListeners.forEach((fn) => fn(syntheticEvent))
+    })
+    const unsubError = manager.on('error', () => {
+      errorListeners.forEach((fn) => {
+        if (typeof fn === 'function') (fn as EventListener)(new Event('error'))
+        else (fn as EventListenerObject).handleEvent(new Event('error'))
+      })
+    })
+    const unsubClose = manager.on('connectionStateChange', ({ state }: { state: string }) => {
+      if (state === 'disconnected' || state === 'closed') {
+        closeListeners.forEach((fn) => {
+          if (typeof fn === 'function') (fn as EventListener)(new Event('close'))
+          else (fn as EventListenerObject).handleEvent(new Event('close'))
+        })
+      }
+    })
+
+    const unsubs: (() => void)[] = [unsubEmotion, unsubError, unsubClose]
+
     // Create a proxy WebSocket-like object for VideoFeed compatibility
-    // This allows the VideoFeed component to send frames through our manager
+    // This allows the VideoFeed component to send frames and receive emotion_result via our manager
     const wsProxy = {
       send: (data: string) => {
         try {
@@ -219,7 +247,6 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
         }
       },
       close: () => manager.disconnect(),
-      // Dynamic readyState based on manager connection
       get readyState() {
         return manager.isConnected() ? WebSocket.OPEN : WebSocket.CLOSED
       },
@@ -227,19 +254,22 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
       get CLOSED() { return WebSocket.CLOSED },
       get CONNECTING() { return WebSocket.CONNECTING },
       get CLOSING() { return WebSocket.CLOSING },
-      // Event listener stubs (VideoFeed adds these but we handle events via manager)
-      addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
-        // Events are handled by the manager, this is just for compatibility
-        console.log(`VideoFeed added event listener for: ${type}`)
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        if (type === 'message') messageListeners.add(listener as (e: MessageEvent) => void)
+        else if (type === 'error') errorListeners.add(listener)
+        else if (type === 'close') closeListeners.add(listener)
       },
-      removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
-        console.log(`VideoFeed removed event listener for: ${type}`)
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        if (type === 'message') messageListeners.delete(listener as (e: MessageEvent) => void)
+        else if (type === 'error') errorListeners.delete(listener)
+        else if (type === 'close') closeListeners.delete(listener)
       }
     } as unknown as WebSocket
-    
+
     setEmotionWebSocket(wsProxy)
 
     return () => {
+      unsubs.forEach((unsub) => unsub())
       manager.disconnect()
       setWsManager(null)
       setEmotionWebSocket(null)
@@ -469,27 +499,25 @@ Duration: ${formatDuration(sessionDuration)}
       return newStats
     })
     
-    // Track unfocus duration and show alert only after 1 minute
-    const isUnfocused = emotionData.engagement === 'distracted' || 
-                        emotionData.focus_level < 50 || 
+    // Track unfocus duration and show alert after 5 seconds of looking away
+    const isUnfocused = emotionData.engagement === 'distracted' ||
+                        emotionData.focus_level < 50 ||
                         emotionData.is_focused_gaze === false
-    
+
     if (isUnfocused) {
-      // Start tracking unfocus time if not already tracking
       if (unfocusStartTime === null) {
         setUnfocusStartTime(Date.now())
         setUnfocusAlertShown(false)
       } else {
-        // Check if unfocused for more than 60 seconds (1 minute)
         const unfocusDuration = (Date.now() - unfocusStartTime) / 1000
-        if (unfocusDuration >= 60 && !unfocusAlertShown) {
+        if (unfocusDuration >= 5 && !unfocusAlertShown) {
           setShowFocusAlert(true)
           setUnfocusAlertShown(true)
           setTimeout(() => setShowFocusAlert(false), 5000)
+          alert('Please look back at the screen. You have been looking away for 5 seconds.')
         }
       }
     } else {
-      // Reset unfocus tracking when user is focused again
       setUnfocusStartTime(null)
       setUnfocusAlertShown(false)
     }
@@ -533,27 +561,25 @@ Duration: ${formatDuration(sessionDuration)}
         return newStats
       })
 
-      // Track unfocus duration and show alert only after 1 minute
-      const isUnfocused = data.engagement === 'distracted' || 
+      // Track unfocus duration and show alert after 5 seconds of looking away
+      const isUnfocused = data.engagement === 'distracted' ||
                           (data.focus_level && data.focus_level < 50) ||
                           data.is_focused_gaze === false
-      
+
       if (isUnfocused) {
-        // Start tracking unfocus time if not already tracking
         if (unfocusStartTime === null) {
           setUnfocusStartTime(Date.now())
           setUnfocusAlertShown(false)
         } else {
-          // Check if unfocused for more than 60 seconds (1 minute)
           const unfocusDuration = (Date.now() - unfocusStartTime) / 1000
-          if (unfocusDuration >= 60 && !unfocusAlertShown) {
+          if (unfocusDuration >= 5 && !unfocusAlertShown) {
             setShowFocusAlert(true)
             setUnfocusAlertShown(true)
             setTimeout(() => setShowFocusAlert(false), 5000)
+            alert('Please look back at the screen. You have been looking away for 5 seconds.')
           }
         }
       } else {
-        // Reset unfocus tracking when user is focused again
         setUnfocusStartTime(null)
         setUnfocusAlertShown(false)
       }
