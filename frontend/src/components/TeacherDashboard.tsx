@@ -27,6 +27,7 @@ import {
   RotateCcw
 } from 'lucide-react'
 import VideoFeed from './VideoFeed'
+import CameraPermissionModal, { checkCameraPermission } from './CameraPermissionModal'
 import { agoraConfig, validateAgoraConfig } from '@/lib/agoraConfig'
 import { sessionApi, reportsApi, notificationApi } from '@/lib/api'
 
@@ -99,6 +100,20 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
     type: 'info' as 'info' | 'warning' | 'success',
   })
   const [notificationSent, setNotificationSent] = useState(false)
+  const [showCameraModal, setShowCameraModal] = useState(false)
+  const [cameraGranted, setCameraGranted] = useState(false)
+  const [pendingCreateSession, setPendingCreateSession] = useState(false)
+
+  // Show camera permission modal on dashboard load
+  useEffect(() => {
+    checkCameraPermission().then(status => {
+      if (status === 'granted') {
+        setCameraGranted(true)
+      } else {
+        setShowCameraModal(true)
+      }
+    })
+  }, [])
 
   // Helper functions for emotion display
   const getEmotionEmoji = (emotion: string) => {
@@ -463,6 +478,13 @@ export default function TeacherDashboard({ teacherName, onBack }: TeacherDashboa
   }, [isVideoFullscreen])
 
   const createSession = async () => {
+    // Ensure camera permission before creating session
+    if (!cameraGranted) {
+      setPendingCreateSession(true)
+      setShowCameraModal(true)
+      return
+    }
+
     // Validate inputs
     if (!newSessionData.subject || newSessionData.subject.trim() === '') {
       setError('Please enter a subject/topic for the session')
@@ -1562,6 +1584,22 @@ Focus Level,${student.focus_level}%
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Camera Permission Modal */}
+      <CameraPermissionModal
+        show={showCameraModal}
+        context="to monitor your session and camera preview"
+        onResolved={(granted) => {
+          setShowCameraModal(false)
+          setCameraGranted(granted)
+          if (granted && pendingCreateSession) {
+            setPendingCreateSession(false)
+            createSession()
+          } else {
+            setPendingCreateSession(false)
+          }
+        }}
+      />
     </div>
   )
   }

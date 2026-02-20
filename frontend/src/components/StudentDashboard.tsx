@@ -21,6 +21,7 @@ import VideoFeed from './VideoFeed'
 import EngagementIndicator from './EngagementIndicator'
 import FocusAlert from './FocusAlert'
 import Notepad from './Notepad'
+import CameraPermissionModal, { checkCameraPermission } from './CameraPermissionModal'
 import { agoraConfig, validateAgoraConfig } from '@/lib/agoraConfig'
 
 import { WebSocketManager, ConnectionState } from '@/lib/websocket'
@@ -89,11 +90,25 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const [lastEngagementTime, setLastEngagementTime] = useState<number>(Date.now())
   const [currentGazeDirection, setCurrentGazeDirection] = useState<string>('CENTER')
   const [isCurrentlyFocusedGaze, setIsCurrentlyFocusedGaze] = useState<boolean>(true)
+  const [showCameraModal, setShowCameraModal] = useState(false)
+  const [cameraGranted, setCameraGranted] = useState(false)
+  const [pendingJoin, setPendingJoin] = useState(false)
 
   // Validate Agora config on mount
   useEffect(() => {
     const validation = validateAgoraConfig()
     setAgoraConfigValid(validation.valid)
+  }, [])
+
+  // Show camera permission modal on dashboard load
+  useEffect(() => {
+    checkCameraPermission().then(status => {
+      if (status === 'granted') {
+        setCameraGranted(true)
+      } else {
+        setShowCameraModal(true)
+      }
+    })
   }, [])
 
   // Timer for session duration and engagement tracking
@@ -281,6 +296,13 @@ export default function StudentDashboard({ studentName, onBack }: StudentDashboa
   const joinSession = async () => {
     if (!sessionCode.trim()) {
       alert('Please enter a session code')
+      return
+    }
+
+    // Ensure camera permission before joining
+    if (!cameraGranted) {
+      setPendingJoin(true)
+      setShowCameraModal(true)
       return
     }
 
@@ -1098,6 +1120,23 @@ Duration: ${formatDuration(sessionDuration)}
           onClose={() => setShowFocusAlert(false)}
         />
       )}
+
+      {/* Camera Permission Modal */}
+      <CameraPermissionModal
+        show={showCameraModal}
+        context="to track your engagement during the session"
+        onResolved={(granted) => {
+          setShowCameraModal(false)
+          setCameraGranted(granted)
+          if (granted && pendingJoin) {
+            setPendingJoin(false)
+            // Re-trigger join now that camera is granted
+            joinSession()
+          } else {
+            setPendingJoin(false)
+          }
+        }}
+      />
     </div>
   )
 }
