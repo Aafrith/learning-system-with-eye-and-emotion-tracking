@@ -51,6 +51,14 @@ class ChangePassword(BaseModel):
     current_password: str
     new_password: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    reset_code: str
+    new_password: str
+
 class UserInDB(UserBase):
     id: str = Field(alias="_id")
     hashed_password: str
