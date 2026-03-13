@@ -41,6 +41,7 @@ async def create_session(
         "max_students": session_data.max_students,
         "is_active": True,  # Active by default
         "students": [],
+        "participants": [],  # Historical participant list (who joined)
         "created_at": datetime.utcnow(),
         "started_at": datetime.utcnow(),  # Set start time immediately
         "ended_at": None
@@ -304,11 +305,12 @@ async def join_session(
         )
     
     # Add student to session
+    joined_at = datetime.utcnow()
     student_data = {
         "id": current_user.id,
         "name": current_user.name,
         "email": current_user.email,
-        "joined_at": datetime.utcnow(),
+        "joined_at": joined_at,
         "emotion": None,
         "engagement": None,
         "focus_level": None
@@ -318,6 +320,37 @@ async def join_session(
         {"_id": session["_id"]},
         {"$push": {"students": student_data}}
     )
+
+    # Track historical participants even if they later leave from active students list.
+    participant_update = await db.sessions.update_one(
+        {
+            "_id": session["_id"],
+            "participants.id": current_user.id
+        },
+        {
+            "$set": {
+                "participants.$.name": current_user.name,
+                "participants.$.email": current_user.email,
+                "participants.$.last_joined_at": joined_at
+            }
+        }
+    )
+    if participant_update.modified_count == 0:
+        await db.sessions.update_one(
+            {"_id": session["_id"]},
+            {
+                "$push": {
+                    "participants": {
+                        "id": current_user.id,
+                        "name": current_user.name,
+                        "email": current_user.email,
+                        "first_joined_at": joined_at,
+                        "last_joined_at": joined_at,
+                        "last_left_at": None
+                    }
+                }
+            }
+        )
     
     # Get updated session
     updated_session = await db.sessions.find_one({"_id": session["_id"]})
@@ -348,6 +381,18 @@ async def leave_session(
     result = await db.sessions.update_one(
         {"_id": session_id},
         {"$pull": {"students": {"id": current_user.id}}}
+    )
+
+    await db.sessions.update_one(
+        {
+            "_id": session_id,
+            "participants.id": current_user.id
+        },
+        {
+            "$set": {
+                "participants.$.last_left_at": datetime.utcnow()
+            }
+        }
     )
     
     # Send WebSocket notification to teacher about student leaving

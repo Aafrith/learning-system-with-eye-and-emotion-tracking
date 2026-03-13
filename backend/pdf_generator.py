@@ -14,6 +14,38 @@ from io import BytesIO
 from datetime import datetime
 from typing import Dict, List, Any
 
+
+def _safe_iso_to_datetime(value: Any) -> datetime | None:
+    """Parse datetime values from ISO strings or datetime objects."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value.strip():
+        candidate = value.strip().replace('Z', '+00:00')
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            return None
+    return None
+
+
+def _format_datetime(value: Any, fallback: str = "N/A") -> str:
+    """Format datetime-like values for consistent PDF display."""
+    parsed = _safe_iso_to_datetime(value)
+    if parsed:
+        return parsed.strftime('%b %d, %Y %I:%M %p')
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return fallback
+
+
+def _safe_focus(value: Any) -> float:
+    """Normalize focus level for rendering."""
+    try:
+        focus = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(100.0, focus))
+
 def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
     """
     Generate a professional PDF report for a session
@@ -84,11 +116,12 @@ def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
     # Session Information Section
     elements.append(Paragraph("Session Information", heading_style))
     
+    session_start = _format_datetime(report_data.get('start_time'))
     session_info_data = [
         ['Session Code:', report_data['session_code']],
         ['Subject:', report_data['subject']],
         ['Teacher:', report_data['teacher_name']],
-        ['Date:', datetime.fromisoformat(report_data['start_time']).strftime('%B %d, %Y at %I:%M %p')],
+        ['Date:', session_start],
         ['Duration:', f"{report_data['duration_minutes']} minutes"],
         ['Status:', 'Active' if report_data['is_active'] else 'Completed']
     ]
@@ -163,11 +196,18 @@ def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
     elements.append(Paragraph("Emotion Distribution", subheading_style))
     emotion_data = [['Emotion', 'Count']]
     emotion_icons = {
+        'happy': '😊',
         'happiness': '😊',
+        'sad': '😢',
         'sadness': '😢',
+        'angry': '😠',
         'anger': '😠',
         'fear': '😨',
+        'fearful': '😨',
         'surprise': '😲',
+        'surprised': '😲',
+        'disgust': '🤢',
+        'disgusted': '🤢',
         'neutral': '😐'
     }
     for emotion, count in stats['emotions'].items():
@@ -196,33 +236,39 @@ def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
         elements.append(Spacer(1, 0.2*inch))
         
         # Student table header
-        student_data = [['Name', 'Emotion', 'Engagement', 'Focus Level']]
+        student_data = [['Name', 'Emotion', 'Engagement', 'Focus Level', 'Joined At', 'Data Points']]
         
         # Add student rows
         for student in report_data['students']:
             emotion_icon = emotion_icons.get(student['emotion'], '😐')
             
             # Color code focus level
-            focus = student['focus_level']
+            focus = _safe_focus(student.get('focus_level'))
+            joined_at = _format_datetime(student.get('joined_at'))
+            data_points = int(student.get('data_points') or 0)
             
             student_data.append([
-                student['name'][:25],  # Truncate long names
+                (student.get('name') or 'Unknown')[:20],
                 f"{emotion_icon} {student['emotion']}",
                 student['engagement'].capitalize(),
-                f"{focus}%"
+                f"{focus:.1f}%",
+                joined_at,
+                str(data_points)
             ])
         
-        student_table = Table(student_data, colWidths=[1.8*inch, 1.5*inch, 1.5*inch, 1.2*inch])
+        student_table = Table(student_data, colWidths=[1.25*inch, 1.0*inch, 1.0*inch, 0.7*inch, 2.0*inch, 0.55*inch])
         
         # Apply styling
         table_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('PADDING', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('PADDING', (0, 0), (-1, -1), 6),
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 0), (4, -1), 'LEFT'),
+            ('ALIGN', (5, 0), (5, -1), 'CENTER'),
             ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#cbd5e1')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]
@@ -236,7 +282,7 @@ def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
         
         # Color code focus levels
         for i, student in enumerate(report_data['students'], 1):
-            focus = student['focus_level']
+            focus = _safe_focus(student.get('focus_level'))
             if focus >= 70:
                 table_style.append(('TEXTCOLOR', (3, i), (3, i), colors.HexColor('#10b981')))
                 table_style.append(('FONTNAME', (3, i), (3, i), 'Helvetica-Bold'))
@@ -247,6 +293,32 @@ def create_session_pdf_report(report_data: Dict[str, Any]) -> BytesIO:
         
         student_table.setStyle(TableStyle(table_style))
         elements.append(student_table)
+        elements.append(Spacer(1, 0.2*inch))
+
+        # Additional attendance/contact details for complete teacher visibility
+        attendance_data = [['Name', 'Email', 'Joined At']]
+        for student in report_data['students']:
+            attendance_data.append([
+                (student.get('name') or 'Unknown')[:25],
+                (student.get('email') or 'N/A')[:35],
+                _format_datetime(student.get('joined_at'))
+            ])
+
+        attendance_table = Table(attendance_data, colWidths=[1.8*inch, 2.4*inch, 1.8*inch])
+        attendance_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('PADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (2, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d1d5db')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f9fafb')),
+        ]))
+        elements.append(Paragraph("Attendance Details", subheading_style))
+        elements.append(attendance_table)
     
     # Footer
     elements.append(Spacer(1, 0.5*inch))

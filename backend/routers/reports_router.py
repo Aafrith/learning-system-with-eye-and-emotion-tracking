@@ -1,15 +1,90 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
-from io import BytesIO
-import json
+from typing import List, Dict, Any
 
 from models import UserInDB
 from auth import get_current_user, get_current_teacher, get_current_student
 from database import get_database
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
+
+
+def normalize_engagement(value: Any) -> str:
+    """Normalize engagement values to active/passive/distracted."""
+    if value is None:
+        return "passive"
+
+    text = str(value).strip().lower().replace("_", " ").replace("-", " ")
+    text = " ".join(text.split())
+
+    if text in {"active", "passive", "distracted"}:
+        return text
+
+    aliases = {
+        "engaged": "active",
+        "focused": "active",
+        "attentive": "active",
+        "not engaged": "passive",
+        "inactive": "passive",
+        "idle": "passive",
+        "unfocused": "distracted",
+        "away": "distracted",
+        "off screen": "distracted",
+    }
+    return aliases.get(text, "passive")
+
+
+def normalize_emotion(value: Any) -> str:
+    """Normalize emotion labels to a stable lowercase set."""
+    if value is None:
+        return "neutral"
+
+    emotion = str(value).strip().lower()
+    aliases = {
+        "happiness": "happy",
+        "sadness": "sad",
+        "anger": "angry",
+        "fearful": "fear",
+        "surprised": "surprise",
+        "disgusted": "disgust",
+        "neutrality": "neutral",
+    }
+    return aliases.get(emotion, emotion or "neutral")
+
+
+def normalize_focus_level(value: Any, default: float = 0.0) -> float:
+    """Normalize focus level to a bounded percentage value."""
+    if value is None:
+        return default
+    try:
+        focus = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(100.0, focus))
+
+
+def parse_datetime(value: Any) -> datetime | None:
+    """Parse datetime values from datetime objects or ISO strings."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value.strip():
+        candidate = value.strip().replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            return None
+    return None
+
+
+def serialize_datetime(value: Any) -> str | None:
+    """Serialize datetime-like values to ISO strings."""
+    parsed = parse_datetime(value)
+    if parsed:
+        return parsed.isoformat()
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
 
 # Helper function to calculate statistics
 def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
@@ -20,6 +95,7 @@ def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
             "avg_focus": 0,
             "avg_engagement": 0,
             "emotions": {},
+            "engagement_distribution": {"active": 0, "passive": 0, "distracted": 0},
             "focus_distribution": {"high": 0, "medium": 0, "low": 0}
         }
     
@@ -30,7 +106,7 @@ def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
     
     for student in students_data:
         # Focus level - handle None values
-        focus = student.get("focus_level") or 0
+        focus = normalize_focus_level(student.get("focus_level"), 0.0)
         total_focus += focus
         
         if focus >= 70:
@@ -41,11 +117,11 @@ def calculate_engagement_stats(students_data: List[Dict]) -> Dict:
             focus_distribution["low"] += 1
         
         # Emotion - handle None values
-        emotion = student.get("emotion") or "neutral"
+        emotion = normalize_emotion(student.get("emotion"))
         emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
         
         # Engagement - handle None values
-        engagement = student.get("engagement") or "passive"
+        engagement = normalize_engagement(student.get("engagement"))
         if engagement in engagement_counts:
             engagement_counts[engagement] += 1
     
@@ -85,82 +161,170 @@ async def get_session_report(
         )
     
     if current_user.role == "student":
-        student_in_session = any(s["id"] == current_user.id for s in session.get("students", []))
-        if not student_in_session:
+        student_in_session = any(s.get("id") == current_user.id for s in session.get("students", []))
+        student_has_history = await db.engagement_data.count_documents({
+            "session_id": session_id,
+            "student_id": current_user.id
+        }) > 0
+
+        if not student_in_session and not student_has_history:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view this session report"
             )
     
-    # Get aggregated engagement data for each student from engagement_data collection
-    students_with_analytics = []
+    # Build roster from current session students and historical engagement records
+    all_engagement_records = await db.engagement_data.find({
+        "session_id": session_id
+    }).to_list(None)
+
+    records_by_student: Dict[str, List[Dict[str, Any]]] = {}
+    for record in all_engagement_records:
+        student_id = record.get("student_id")
+        if not student_id:
+            continue
+        records_by_student.setdefault(student_id, []).append(record)
+
+    student_roster: Dict[str, Dict[str, Any]] = {}
+
+    # Historical participant roster (persists after students leave active list).
+    for participant in session.get("participants", []):
+        student_id = participant.get("id")
+        if not student_id:
+            continue
+        student_roster[student_id] = {
+            "id": student_id,
+            "name": participant.get("name"),
+            "email": participant.get("email"),
+            "joined_at": participant.get("first_joined_at") or participant.get("last_joined_at"),
+            "emotion": normalize_emotion(participant.get("emotion")),
+            "engagement": normalize_engagement(participant.get("engagement")),
+            "focus_level": normalize_focus_level(participant.get("focus_level"), 0.0),
+        }
+
     for student in session.get("students", []):
-        student_id = student["id"]
-        
-        # Fetch all engagement records for this student in this session
-        engagement_records = await db.engagement_data.find({
-            "session_id": session_id,
-            "student_id": student_id
-        }).to_list(None)
-        
-        if engagement_records and len(engagement_records) > 0:
-            # Calculate averages from actual data
+        student_id = student.get("id")
+        if not student_id:
+            continue
+        existing = student_roster.get(student_id, {})
+        student_roster[student_id] = {
+            "id": student_id,
+            "name": student.get("name") or existing.get("name"),
+            "email": student.get("email") or existing.get("email"),
+            "joined_at": student.get("joined_at") or existing.get("joined_at"),
+            "emotion": normalize_emotion(student.get("emotion") or existing.get("emotion")),
+            "engagement": normalize_engagement(student.get("engagement") or existing.get("engagement")),
+            "focus_level": normalize_focus_level(student.get("focus_level"), existing.get("focus_level", 0.0)),
+        }
+
+    for student_id in records_by_student.keys():
+        student_roster.setdefault(student_id, {
+            "id": student_id,
+            "name": None,
+            "email": None,
+            "joined_at": None,
+            "emotion": "neutral",
+            "engagement": "passive",
+            "focus_level": 0.0,
+        })
+
+    missing_meta_ids = [
+        sid for sid, student in student_roster.items()
+        if not student.get("name") or not student.get("email")
+    ]
+    if missing_meta_ids:
+        users = await db.users.find(
+            {"_id": {"$in": missing_meta_ids}},
+            {"_id": 1, "name": 1, "email": 1}
+        ).to_list(None)
+        for user in users:
+            sid = user.get("_id")
+            if sid not in student_roster:
+                continue
+            if not student_roster[sid].get("name"):
+                student_roster[sid]["name"] = user.get("name")
+            if not student_roster[sid].get("email"):
+                student_roster[sid]["email"] = user.get("email")
+
+    # Aggregate analytics for each rostered student
+    students_with_analytics = []
+    for student_id, student in student_roster.items():
+        engagement_records = records_by_student.get(student_id, [])
+
+        if engagement_records:
             total_focus = 0
             emotion_counts = {}
             engagement_counts = {"active": 0, "passive": 0, "distracted": 0}
             valid_focus_count = 0
+            first_seen_ts: datetime | None = None
             
             for record in engagement_records:
                 # Focus level
-                focus = record.get("focus_level")
-                if focus is not None:
+                raw_focus = record.get("focus_level")
+                if raw_focus is not None:
+                    focus = normalize_focus_level(raw_focus, 0.0)
                     total_focus += focus
                     valid_focus_count += 1
                 
                 # Emotion counts
-                emotion = record.get("emotion") or "neutral"
+                emotion = normalize_emotion(record.get("emotion"))
                 emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
                 
                 # Engagement counts
-                engagement = record.get("engagement") or "passive"
+                engagement = normalize_engagement(record.get("engagement"))
                 if engagement in engagement_counts:
                     engagement_counts[engagement] += 1
+
+                timestamp = parse_datetime(record.get("timestamp"))
+                if timestamp and (first_seen_ts is None or timestamp < first_seen_ts):
+                    first_seen_ts = timestamp
             
             # Calculate averages
             avg_focus = round(total_focus / valid_focus_count, 1) if valid_focus_count > 0 else 0
             
             # Find dominant emotion
-            dominant_emotion = max(emotion_counts, key=emotion_counts.get) if emotion_counts else "neutral"
+            dominant_emotion = max(emotion_counts, key=emotion_counts.get) if emotion_counts else student["emotion"]
             
             # Find dominant engagement
-            dominant_engagement = max(engagement_counts, key=engagement_counts.get) if any(engagement_counts.values()) else "passive"
+            dominant_engagement = max(engagement_counts, key=engagement_counts.get) if any(engagement_counts.values()) else student["engagement"]
+
+            joined_at = serialize_datetime(student.get("joined_at")) or serialize_datetime(first_seen_ts) or "N/A"
             
             students_with_analytics.append({
                 "id": student_id,
-                "name": student["name"],
+                "name": student.get("name") or f"Student {student_id[:8]}",
                 "email": student.get("email"),
-                "joined_at": student["joined_at"].isoformat() if hasattr(student["joined_at"], 'isoformat') else str(student["joined_at"]),
-                "emotion": dominant_emotion,
-                "engagement": dominant_engagement,
+                "joined_at": joined_at,
+                "emotion": normalize_emotion(dominant_emotion),
+                "engagement": normalize_engagement(dominant_engagement),
                 "focus_level": avg_focus,
                 "data_points": len(engagement_records),
                 "emotion_distribution": emotion_counts,
                 "engagement_distribution": engagement_counts
             })
         else:
-            # No engagement data - use values from session (last known values)
+            # No historical engagement data - use last known values from roster
+            joined_at = serialize_datetime(student.get("joined_at")) or "N/A"
             students_with_analytics.append({
                 "id": student_id,
-                "name": student["name"],
+                "name": student.get("name") or f"Student {student_id[:8]}",
                 "email": student.get("email"),
-                "joined_at": student["joined_at"].isoformat() if hasattr(student["joined_at"], 'isoformat') else str(student["joined_at"]),
-                "emotion": student.get("emotion") or "neutral",
-                "engagement": student.get("engagement") or "passive",
-                "focus_level": student.get("focus_level") or 0,
+                "joined_at": joined_at,
+                "emotion": normalize_emotion(student.get("emotion")),
+                "engagement": normalize_engagement(student.get("engagement")),
+                "focus_level": round(normalize_focus_level(student.get("focus_level"), 0.0), 1),
                 "data_points": 0,
                 "emotion_distribution": {},
                 "engagement_distribution": {}
             })
+
+    students_with_analytics.sort(
+        key=lambda student: (
+            student.get("joined_at") == "N/A",
+            student.get("joined_at") or "",
+            student.get("name") or ""
+        )
+    )
     
     # Calculate overall statistics from aggregated data
     stats = calculate_engagement_stats(students_with_analytics)

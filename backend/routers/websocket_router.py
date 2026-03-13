@@ -595,6 +595,17 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                     {"_id": session_id},
                     {"$pull": {"students": {"id": student_id}}}
                 )
+                await db.sessions.update_one(
+                    {
+                        "_id": session_id,
+                        "participants.id": student_id
+                    },
+                    {
+                        "$set": {
+                            "participants.$.last_left_at": datetime.utcnow()
+                        }
+                    }
+                )
                 if result.modified_count > 0:
                     print(f"✅ Removed student {student_name} from session database")
                     should_notify = True  # Only notify if we actually removed them
@@ -632,6 +643,17 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                 result = await db.sessions.update_one(
                     {"_id": session_id},
                     {"$pull": {"students": {"id": student_id}}}
+                )
+                await db.sessions.update_one(
+                    {
+                        "_id": session_id,
+                        "participants.id": student_id
+                    },
+                    {
+                        "$set": {
+                            "participants.$.last_left_at": datetime.utcnow()
+                        }
+                    }
                 )
                 if result.modified_count > 0:
                     print(f"✅ Removed student {student_name} from session database")
@@ -671,6 +693,17 @@ async def student_websocket(websocket: WebSocket, session_id: str, student_id: s
                 result = await db.sessions.update_one(
                     {"_id": session_id},
                     {"$pull": {"students": {"id": student_id}}}
+                )
+                await db.sessions.update_one(
+                    {
+                        "_id": session_id,
+                        "participants.id": student_id
+                    },
+                    {
+                        "$set": {
+                            "participants.$.last_left_at": datetime.utcnow()
+                        }
+                    }
                 )
                 if result.modified_count > 0:
                     print(f"✅ Removed student {student_name} from session database")
